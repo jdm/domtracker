@@ -1,0 +1,54 @@
+.highlight {
+    background-color: cyan;
+}
+
+.row-highlight {
+    background-color: lightgrey;
+}
+
+.editor {
+    font-family: monospace;
+    border: 1px solid;
+    padding: 10px;
+    float: left;
+}
+
+.editor span {
+    margin-right: .5em;
+}
+
+.channel {
+    border: 1px solid;
+    padding: 2px;
+    float: left;
+}
+
+.channel .header {
+    background-color: lightgrey;
+    margin-bottom: 5px;
+    border-bottom: 1px dashed;
+}
+
+.note {
+    color: black;
+}
+
+.blank {
+    color: black;
+}
+
+.setvolume {
+    color: darkgreen;
+}
+
+.patternbreak {
+    color: darkred;
+}
+
+.volume {
+    color: darkgreen;
+}
+
+.instrument {
+    color: darkblue;
+}
