@@ -59,18 +59,44 @@ function isAlpha(c) {
   return c >= 'a'.charCodeAt(0) && c <= 'z'.charCodeAt(0);
 }
 
+function ChannelData(numRows) {
+  this.rows = [];
+  while (numRows--) {
+    this.rows.push({});
+  }
+}
+
+ChannelData.prototype = {
+  insertSpace: function(row) {
+    this.rows.splice(row, 1, {});
+    this.rows.pop();
+  }
+};
+
+function Pattern(numChannels, numRows) {
+  this.numRows = numRows;
+  this.channelData = [];
+  while (numChannels--) {
+    this.channelData.push(new ChannelData(numRows));
+  }
+}
+
+Pattern.prototype = {
+};
+
 function EditorInput() {
+  this.numChannels = 2;
+  this.numPatterns = 1;
+  this.numColumns = 4;
+
   this.channel = 1;
   this.column = 1;
   this.row = 1;
   this.pattern = 1;
+
   this.patterns = [
-    {numRows: 2}
+    new Pattern(this.numChannels, 2)
   ];
-  this.numChannels = 2;
-  this.numPatterns = 1;
-  this.numRows = 2;
-  this.numColumns = 4;
 }
 
 EditorInput.prototype = {
@@ -133,13 +159,17 @@ EditorInput.prototype = {
     }
     return true;
   },
+  
+  overwriteValue: function(ev) {
+    
+  },
 
   handleKeypress: function(ev) {
     var key = keyCodeToString(ev, ev.keyCode);
     console.log(key);
     if (isAlpha(key) ||
         ['[', ']', ';', '\'', ',', '.', '/', '\\'].indexOf(ev.key) != -1) {
-      this.overwriteNote(ev.key);
+      this.overwriteValue(ev.key);
       ev.preventDefault();
       return;
     }
@@ -177,6 +207,65 @@ EditorInput.prototype = {
     ev.preventDefault();
   },
   
+  generateEditorUI: function() {
+    var channels = $('.channel');
+    var pattern = this.patterns[this.pattern - 1];
+    for (var i = 0; i < this.numChannels; i++) {
+      var channel = channels[i];
+      while (channel.childNodes.length > 0) {
+        channel.removeChild(channel.firstChild);
+      }
+      var header = document.createElement('div');
+      $(header).addClass('header');
+      header.textContent = "Channel " + (i + 1);
+      channel.appendChild(header);
+      for (var j = 0; j < pattern.numRows; j++) {
+        var row = pattern.channelData[i].rows[j];
+        var rowElem = document.createElement('div');
+        $(rowElem).addClass('row');
+
+        var elem = document.createElement('span');
+        var hasContent = 'note' in row;
+        $(elem).addClass(hasContent ? 'note' : 'blank');
+        elem.textContent = hasContent ? row.note : '...';
+        rowElem.appendChild(elem);
+
+        elem = document.createElement('span');
+        hasContent = 'instrument' in row;
+        $(elem).addClass(hasContent ? 'instrument' : 'blank');
+        elem.textContent = hasContent ? row.instrument : '..';
+        rowElem.appendChild(elem);
+
+        elem = document.createElement('span');
+        hasContent = 'volume' in row;
+        $(elem).addClass(hasContent ? 'volume' : 'blank');
+        elem.textContent = hasContent ? row.volume : '..';
+        rowElem.appendChild(elem);
+
+        elem = document.createElement('span');
+        $(elem).addClass(effectToClass(row));
+        elem.textContent = 'effect' in row ? row.effect : '...';
+        rowElem.appendChild(elem);
+
+        channel.appendChild(rowElem);
+      }
+    }
+    
+    function effectToClass(row) {
+      if (!('effect' in row))
+        return 'blank';
+      switch (row.effect[0]) {
+        case 'C':
+          return 'setvolume';
+        case 'D':
+          return 'patternbreak';
+        default:
+          break;
+      }
+      return 'effect';
+    }
+  },
+  
   updateUI: function() {
     $('.row-highlight').removeClass('row-highlight');
     $('.highlight').removeClass('highlight');
@@ -195,6 +284,7 @@ EditorInput.prototype = {
 
 window.onload = function() {
   var editor = new EditorInput();
-  $(window).keypress(editor.handleKeypress.bind(editor));  
+  $(window).keypress(editor.handleKeypress.bind(editor));
+  editor.generateEditorUI();
   editor.updateUI();
 }
