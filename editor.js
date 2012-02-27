@@ -1,10 +1,9 @@
 var keyMapping;
 
-function keyCodeToString(ev) {
-  var keyCode = ev.keyCode || ev.which;
-  var key = String.fromCharCode(keyCode);
-  if ((keyCode >= 'a'.charCodeAt(0) && keyCode <= 'z'.charCodeAt(0)))
-    return key;
+function keyCodeToString(keyCode) {
+  if (isAlphaNum(keyCode)) {
+    return String.fromCharCode(keyCode);    
+  }
   if (keyMapping)
     return keyMapping[keyCode];
 
@@ -55,8 +54,90 @@ function keyCodeToString(ev) {
   return keyMapping[keyCode];
 }
 
+function noteFromKey(key) {
+  var base = 4;
+  switch (key) {
+    case 'z':
+      return 'C-' + base;
+    case 'x':
+      return 'C#' + base;
+    case 'c':
+      return 'D-' + base;
+    case 'v':
+      return 'D#' + base;
+    case 'b':
+      return 'E-' + base;
+    case 'n':
+      return 'F-' + base;
+    case 'm':
+      return 'F#' + base;
+    case ',':
+      return 'G-' + base;
+    case '.':
+      return 'G#' + base;
+    case '/':
+      return 'A-' + base;
+    case 'a':
+      return 'C-' + (base + 1);
+    case 's':
+      return 'C#' + (base + 1);
+    case 'd':
+      return 'D-' + (base + 1);
+    case 'f':
+      return 'D#' + (base + 1);
+    case 'g':
+      return 'E-' + (base + 1);
+    case 'h':
+      return 'F-' + (base + 1);
+    case 'j':
+      return 'F#' + (base + 1);
+    case 'k':
+      return 'G-' + (base + 1);
+    case 'l':
+      return 'G#' + (base + 1);
+    case ';':
+      return 'A-' + (base + 1);
+    case '\'':
+      return 'A#' + (base + 1);
+    case '\\':
+      return 'B-' + (base + 1);
+    case 'q':
+      return 'C-' + (base + 2);
+    case 'w':
+      return 'C#' + (base + 2);
+    case 'e':
+      return 'D-' + (base + 2);
+    case 'r':
+      return 'D#' + (base + 2);
+    case 't':
+      return 'E-' + (base + 2);
+    case 'y':
+      return 'F-' + (base + 2);
+    case 'u':
+      return 'F#' + (base + 2);
+    case 'i':
+      return 'G-' + (base + 2);
+    case 'o':
+      return 'G#' + (base + 2);
+    case 'p':
+      return 'A-' + (base + 2);
+    case '[':
+      return 'A#' + (base + 2);
+    case ']':
+      return 'B-' + (base + 2);
+  }
+}
+
+function isNum(c) {
+  return (c >= '0'.charCodeAt(0) && c <= '9'.charCodeAt(0));
+}
+
 function isAlpha(c) {
-  return c >= 'a'.charCodeAt(0) && c <= 'z'.charCodeAt(0);
+  return (c >= 'a'.charCodeAt(0) && c <= 'z'.charCodeAt(0));
+}
+
+function isAlphaNum(c) {
+  return isAlpha(c) || isNum(c);
 }
 
 function ChannelData(numRows) {
@@ -85,18 +166,22 @@ Pattern.prototype = {
 };
 
 function EditorInput() {
-  this.numChannels = 2;
+  this.numChannels = 8;
   this.numPatterns = 1;
   this.numColumns = 4;
+  
+  this.sample = 1;
 
   this.channel = 1;
   this.column = 1;
   this.row = 1;
   this.pattern = 1;
 
-  this.patterns = [
-    new Pattern(this.numChannels, 2)
-  ];
+  this.patterns = [];
+  var n = this.numChannels;
+  while (n--) {
+    this.patterns.push(new Pattern(this.numChannels, 64));
+  }
 }
 
 EditorInput.prototype = {
@@ -160,16 +245,44 @@ EditorInput.prototype = {
     return true;
   },
   
-  overwriteValue: function(ev) {
-    
+  overwriteValue: function(keyCode) {
+    switch (this.column) {
+      case 1:
+        if (isNum(keyCode))
+          break;
+        var row = this.patterns[this.pattern - 1]
+                      .channelData[this.channel - 1]
+                      .rows[this.row - 1];
+        row.note = noteFromKey(keyCodeToString(keyCode));
+        row.instrument = this.sample + (this.sample < 10 ? " " : "");
+        this.adjustRow(1);
+        break;
+      case 2:
+        return;
+      case 3:
+        if (!isNum(keyCode))
+          break;
+        var row = this.patterns[this.pattern - 1]
+                      .channelData[this.channel - 1]
+                      .rows[this.row - 1];
+        var vol = 'volume' in row ? row.volume : '00';
+        row.volume = vol.charAt(1) + String.fromCharCode(keyCode);
+        break;
+    }
+    this.generateEditorUI();
+    this.updateUI();
   },
 
   handleKeypress: function(ev) {
-    var key = keyCodeToString(ev, ev.keyCode);
-    console.log(key);
-    if (isAlpha(key) ||
-        ['[', ']', ';', '\'', ',', '.', '/', '\\'].indexOf(ev.key) != -1) {
-      this.overwriteValue(ev.key);
+    if (ev.altKey || ev.ctrlKey || ev.metaKey)
+      return;
+
+    var keyCode = ev.keyCode || ev.which;
+    var key = keyCodeToString(keyCode);
+    console.log(keyCode);
+    if (isAlphaNum(keyCode) ||
+        ['[', ']', ';', '\'', ',', '.', '/', '\\'].indexOf(key) != -1) {
+      this.overwriteValue(keyCode);
       ev.preventDefault();
       return;
     }
@@ -209,16 +322,23 @@ EditorInput.prototype = {
   
   generateEditorUI: function() {
     var channels = $('.channel');
+    channels.each(function() { this.parentNode.removeChild(this); });
+
     var pattern = this.patterns[this.pattern - 1];
+
     for (var i = 0; i < this.numChannels; i++) {
-      var channel = channels[i];
+      var channel = document.createElement('span');
+      $(channel).addClass('channel');
+      document.getElementById('editor').appendChild(channel);
       while (channel.childNodes.length > 0) {
         channel.removeChild(channel.firstChild);
       }
+
       var header = document.createElement('div');
       $(header).addClass('header');
       header.textContent = "Channel " + (i + 1);
       channel.appendChild(header);
+
       for (var j = 0; j < pattern.numRows; j++) {
         var row = pattern.channelData[i].rows[j];
         var rowElem = document.createElement('div');
@@ -282,9 +402,9 @@ EditorInput.prototype = {
   }
 };
 
-window.onload = function() {
+$(document).ready(function() {
   var editor = new EditorInput();
   $(window).keypress(editor.handleKeypress.bind(editor));
   editor.generateEditorUI();
   editor.updateUI();
-}
+});
