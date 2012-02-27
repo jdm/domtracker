@@ -52,3 +52,7 @@
 .instrument {
     color: darkblue;
 }
+
+select {
+    margin-bottom: 1.5em;
+}

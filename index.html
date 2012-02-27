@@ -6,24 +6,15 @@
 </head>
 <body>
   <div id="editor" class="editor">
-    <span class="channel">
-      <div class="header">Channel 1</div>
-      <div class="row">
-	<span class="note">C-3</span><span class="instrument"> 6</span><span class="volume">ff</span><span class="blank">...</span>
-      </div>
-      <div class="row">
-	<span class="blank">...</span><span class="blank">..</span><span class="blank">..</span><span class="setvolume">C00</span>
-      </div>
-    </span>
-    <span class="channel">
-      <div class="header">Channel 2</div>
-      <div class="row">
-	<span class="note">C-3</span><span class="instrument"> 6</span><span class="blank">..</span><span class="blank">...</span>
-      </div>
-      <div class="row">
-	<span class="blank">...</span><span class="blank">..</span><span class="blank">..</span><span class="patternbreak">D00</span>
-      </div>
-    </span>
+    <label for="instrument">Current instrument: </label>
+    <select id="instrument">
+      <option>Sine wave</option>
+      <option>Bass drum</option>
+      <option>Snare</option>
+      <option>Glass harp</option>
+    </select>
+    <div id="channels">
+    </div>
   </div>
 </body>
 </html>

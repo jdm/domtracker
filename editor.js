@@ -149,8 +149,16 @@ function ChannelData(numRows) {
 
 ChannelData.prototype = {
   insertSpace: function(row) {
-    this.rows.splice(row, 1, {});
-    this.rows.pop();
+    var newRows = this.rows.slice(0, row);
+    newRows.push({});
+    newRows = newRows.concat(this.rows.slice(row, this.rows.length - 1));
+    console.log(newRows.length);
+    this.rows = newRows;
+  },
+  removeLine: function(row) {
+    this.rows.splice(row, 1);
+    this.rows.push({});
+    console.log(this.rows.length);
   }
 };
 
@@ -170,12 +178,12 @@ function EditorInput() {
   this.numPatterns = 1;
   this.numColumns = 4;
   
-  this.sample = 1;
+  this.sample = 0;
 
-  this.channel = 1;
-  this.column = 1;
-  this.row = 1;
-  this.pattern = 1;
+  this.channel = 0;
+  this.column = 0;
+  this.row = 0;
+  this.pattern = 0;
 
   this.patterns = [];
   var n = this.numChannels;
@@ -187,15 +195,15 @@ function EditorInput() {
 EditorInput.prototype = {
   adjustColumn: function(mod) {
     this.column += mod;
-    if (this.column > this.numColumns) {
+    if (this.column == this.numColumns) {
       if (this.adjustChannel(1)) {
-        this.column = 1;        
+        this.column = 0;        
       } else {
         this.column--;
       }
-    } else if (this.column == 0) {
+    } else if (this.column == -1) {
       if (this.adjustChannel(-1)) {
-        this.column = 2;        
+        this.column = this.numColumns - 1;
       } else {
         this.column++;
       }
@@ -203,17 +211,17 @@ EditorInput.prototype = {
     this.updateUI();
   },
 
-  adjustRow: function(mod) {
+  adjustRow: function(mod, stayWithinPattern) {
     this.row += mod;
-    if (this.row > this.patterns[this.pattern - 1].numRows) {
-      if (this.adjustPattern(1)) {
+    if (this.row == this.patterns[this.pattern].numRows) {
+      if (stayWithinPattern && this.adjustPattern(1)) {
         this.row = 0;
       } else {
         this.row--;
       }      
-    } else if (this.row == 0) {
-      if (this.adjustPattern(-1)) {
-        this.row = this.patterns[this.pattern - 1].numRows;
+    } else if (this.row == -1) {
+      if (stayWithinPattern && this.adjustPattern(-1)) {
+        this.row = this.patterns[this.pattern].numRows - 1;
       } else {
         this.row++;
       }
@@ -223,10 +231,10 @@ EditorInput.prototype = {
   
   adjustChannel: function(mod) {
     this.channel += mod;
-    if (this.channel == 0) {
+    if (this.channel == -1) {
       this.channel++;
       return false;
-    } else if (this.channel > this.numChannels) {
+    } else if (this.channel == this.numChannels) {
       this.channel--;
       return false;
     }
@@ -235,36 +243,47 @@ EditorInput.prototype = {
   
   adjustPattern: function(mod) {
     this.pattern += mod;
-    if (this.pattern == 0) {
+    if (this.pattern == -1) {
       this.pattern++;
       return false;
-    } else if (this.pattern > this.numPatterns) {
+    } else if (this.pattern == this.numPatterns) {
       this.pattern--;
       return false;
     }
     return true;
   },
   
+  adjustSample: function(mod) {
+    var instr = document.getElementById('instrument');
+    this.sample += mod;
+    if (this.sample == -1) {
+      this.sample++;
+    } else if (this.sample == instr.getElementsByTagName('option').length) {
+      this.sample--;
+    }
+    instr.selectedIndex = this.sample;
+  },
+  
+  _currentRow: function() {
+    return this.patterns[this.pattern].channelData[this.channel].rows[this.row];
+  },
+  
   overwriteValue: function(keyCode) {
     switch (this.column) {
-      case 1:
+      case 0:
         if (isNum(keyCode))
           break;
-        var row = this.patterns[this.pattern - 1]
-                      .channelData[this.channel - 1]
-                      .rows[this.row - 1];
+        var row = this._currentRow();
         row.note = noteFromKey(keyCodeToString(keyCode));
         row.instrument = this.sample + (this.sample < 10 ? " " : "");
         this.adjustRow(1);
         break;
-      case 2:
+      case 1:
         return;
-      case 3:
+      case 2:
         if (!isNum(keyCode))
           break;
-        var row = this.patterns[this.pattern - 1]
-                      .channelData[this.channel - 1]
-                      .rows[this.row - 1];
+        var row = this._currentRow();
         var vol = 'volume' in row ? row.volume : '00';
         row.volume = vol.charAt(1) + String.fromCharCode(keyCode);
         break;
@@ -274,14 +293,14 @@ EditorInput.prototype = {
   },
 
   handleKeypress: function(ev) {
-    if (ev.altKey || ev.ctrlKey || ev.metaKey)
+    if (ev.altKey || ev.ctrlKey /*|| ev.metaKey*/)
       return;
 
     var keyCode = ev.keyCode || ev.which;
     var key = keyCodeToString(keyCode);
-    console.log(keyCode);
-    if (isAlphaNum(keyCode) ||
-        ['[', ']', ';', '\'', ',', '.', '/', '\\'].indexOf(key) != -1) {
+    //console.log(keyCode);
+    if (!ev.metaKey && (isAlphaNum(keyCode) ||
+         ['[', ']', ';', '\'', ',', '.', '/', '\\'].indexOf(key) != -1)) {
       this.overwriteValue(keyCode);
       ev.preventDefault();
       return;
@@ -291,15 +310,27 @@ EditorInput.prototype = {
       case 'left':
         this.adjustColumn(-1);
         break;
+
       case 'right':
         this.adjustColumn(1);
         break;
+
       case 'up':
-        this.adjustRow(-1);
+        if (ev.metaKey) {
+          this.adjustSample(-1);
+        } else {
+          this.adjustRow(-1);          
+        }
         break;
+
       case 'down':
-        this.adjustRow(1);
+        if (ev.metaKey) {
+          this.adjustSample(1);
+        } else {
+          this.adjustRow(1);
+        }
         break;
+
       case 'home':
         if (this.column == 1)
           this.row = 1;
@@ -307,13 +338,34 @@ EditorInput.prototype = {
         this.channel = 1;
         this.updateUI();
         break;
+
       case 'end':
         if (this.column == this.numColumns && this.channel == this.numChannels)
-          this.row = this.patterns[this.pattern - 1].numRows;
+          this.row = this.patterns[this.pattern].numRows;
         this.column = this.numColumns;
         this.channel = this.numChannels;
         this.updateUI();
         break;
+
+      case 'backspace':
+        this.patterns[this.pattern].channelData[this.channel].removeLine(this.row);
+        this.generateEditorUI();
+        this.adjustRow(-1, true);
+        break;
+
+      case 'delete':
+        var colName;
+        switch (this.column) {
+          case 0: colName = "note"; break;
+          case 1: colName = "instrument"; break;
+          case 2: colName = "volume"; break;
+          case 3: colName = "effect"; break;
+        }
+        delete this.patterns[this.pattern].channelData[this.channel].rows[this.row][colName];
+        this.generateEditorUI();
+        this.updateUI();
+        break;
+
       default:
         return;
     }
@@ -324,12 +376,12 @@ EditorInput.prototype = {
     var channels = $('.channel');
     channels.each(function() { this.parentNode.removeChild(this); });
 
-    var pattern = this.patterns[this.pattern - 1];
+    var pattern = this.patterns[this.pattern];
 
     for (var i = 0; i < this.numChannels; i++) {
       var channel = document.createElement('span');
       $(channel).addClass('channel');
-      document.getElementById('editor').appendChild(channel);
+      document.getElementById('channels').appendChild(channel);
       while (channel.childNodes.length > 0) {
         channel.removeChild(channel.firstChild);
       }
@@ -390,13 +442,13 @@ EditorInput.prototype = {
     $('.row-highlight').removeClass('row-highlight');
     $('.highlight').removeClass('highlight');
     var channels = $('.channel');
-    var idx = 1;
+    var idx = 0;
     var self = this;
     $(channels).each(function() {
-      var row = $($(this).find('.row')[self.row - 1]);
+      var row = $($(this).find('.row')[self.row]);
       row.addClass('row-highlight');
       if (idx++ == self.channel) {
-        $(row.find('span')[self.column - 1]).addClass('highlight');
+        $(row.find('span')[self.column]).addClass('highlight');
       }
     });
   }
