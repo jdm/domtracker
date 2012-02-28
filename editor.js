@@ -140,10 +140,14 @@ function isAlphaNum(c) {
   return isAlpha(c) || isNum(c);
 }
 
-function ChannelData(numRows) {
-  this.rows = [];
-  while (numRows--) {
-    this.rows.push({});
+function ChannelData(numRows, rowData) {
+  if (rowData) {
+    this.rows = rowData;
+  } else {
+    this.rows = [];
+    while (numRows--) {
+      this.rows.push({});
+    }
   }
 }
 
@@ -152,21 +156,20 @@ ChannelData.prototype = {
     var newRows = this.rows.slice(0, row);
     newRows.push({});
     newRows = newRows.concat(this.rows.slice(row, this.rows.length - 1));
-    console.log(newRows.length);
     this.rows = newRows;
   },
   removeLine: function(row) {
     this.rows.splice(row, 1);
     this.rows.push({});
-    console.log(this.rows.length);
   }
 };
 
-function Pattern(numChannels, numRows) {
+function Pattern(numChannels, numRows, rowData) {
   this.numRows = numRows;
   this.channelData = [];
   while (numChannels--) {
-    this.channelData.push(new ChannelData(numRows));
+    this.channelData.push(
+      new ChannelData(numRows, rowData ? rowData.shift() : null));
   }
 }
 
@@ -184,6 +187,7 @@ function EditorInput() {
   this.column = 0;
   this.row = 0;
   this.pattern = 0;
+  this.position = 0;
 
   this.patterns = [];
   var n = this.numChannels;
@@ -214,13 +218,13 @@ EditorInput.prototype = {
   adjustRow: function(mod, stayWithinPattern) {
     this.row += mod;
     if (this.row == this.patterns[this.pattern].numRows) {
-      if (stayWithinPattern && this.adjustPattern(1)) {
+      if (!stayWithinPattern && this.adjustPattern(1)) {
         this.row = 0;
       } else {
         this.row--;
       }      
     } else if (this.row == -1) {
-      if (stayWithinPattern && this.adjustPattern(-1)) {
+      if (!stayWithinPattern && this.adjustPattern(-1)) {
         this.row = this.patterns[this.pattern].numRows - 1;
       } else {
         this.row++;
@@ -242,14 +246,17 @@ EditorInput.prototype = {
   },
   
   adjustPattern: function(mod) {
-    this.pattern += mod;
-    if (this.pattern == -1) {
-      this.pattern++;
+    this.position += mod;
+    if (this.position == this.mod.positionCount) {
+      this.position--;
       return false;
-    } else if (this.pattern == this.numPatterns) {
-      this.pattern--;
+    } else if (this.position == -1) {
+      this.position++;
       return false;
     }
+    this.pattern = this.mod.positions[this.position];
+    this.generateEditorUI();
+    this.updateUI();
     return true;
   },
   
@@ -350,7 +357,7 @@ EditorInput.prototype = {
       case 'backspace':
         this.patterns[this.pattern].channelData[this.channel].removeLine(this.row);
         this.generateEditorUI();
-        this.adjustRow(-1, true);
+        this.updateUI();
         break;
 
       case 'delete':
@@ -451,12 +458,160 @@ EditorInput.prototype = {
         $(row.find('span')[self.column]).addClass('highlight');
       }
     });
-  }
+  },
+  
+  loadMOD: function(mod) {
+    this.mod = mod;
+    this.numPatterns = mod.patternCount;
+    this.numChannels = mod.channelCount;
+    this.position = 0;
+    this.pattern = mod.positions[this.position];
+    this.patterns = [];
+    for (var i = 0; i < this.numPatterns; i++) {
+      var rowData = [];
+      for (var j = 0; j < this.numChannels; j++) {
+        var rows = [];
+        for (var k = 0; k < 64; k++) {
+          var modRow = mod.patterns[i][k][j];
+          var data = {};
+          if (modRow.period && validNote(modRow.period))
+            data.note = periodToDisplay(modRow.period);
+          if (modRow.sample)
+            data.instrument = (modRow.sample < 10 ? "0" : "") + modRow.sample;
+          if (modRow.effect)
+            data.effect = modRow.effect.toString(16).toUpperCase() +
+                            (modRow.effectParameter < 16 ? "0" : "" ) +
+                            modRow.effectParameter.toString(16).toUpperCase();
+          rows.push(data);
+        }
+        rowData.push(rows);
+      }
+      this.patterns.push(new Pattern(this.numChannels, 64, rowData));
+    }
+    this.generateEditorUI();
+    this.updateUI();
+  },
+  
+  mod: null
 };
 
+function validNote(period) {
+  var noteNum = ModPeriodToNoteNumber[period];
+  return noteNum >= 1 && noteNum <= 120;
+}
+
+function periodToDisplay(period) {
+  var noteNum = ModPeriodToNoteNumber[period];
+  var name = ["C-", "C#", "D-", "D#", "E-", "F-", "F#", "G-", "G#", "A-", "A#", "B-"][(noteNum) % 12];
+  return name + (Math.floor(noteNum / 12) + 2);
+}
+
+var modPlayer;
+var editor;
+
+var playing = false;
+var channels = 2;	//stereo
+var sampleRate = 44100;
+var bufferSize = 2048 * channels; 
+var prebufferSize = 12 * channels * 1024; // defines the latency
+
+var outputAudio = new Audio();
+
+//writeAudio thanks to: http://www.toverlamp.org/static/HTML5-Guitar-Tab-Player/
+// function that describes the audio chain
+var currentWritePosition = 0;
+var lastSampleOffset = 0;
+function writeAudio() {
+  if (!playing) { return; }
+  var currentSampleOffset = outputAudio.mozCurrentSampleOffset();
+  var playHasStopped = currentSampleOffset == lastSampleOffset; // if audio stopped playing, just send data to trigger it to play again.
+  while (currentSampleOffset + prebufferSize >= currentWritePosition || playHasStopped ) {
+    // generate audio
+    var audioData = modPlayer.getSamples(bufferSize);
+    
+    // write audio	
+    var written = outputAudio.mozWriteAudio(audioData);
+    currentWritePosition += written;	//portionSize;
+    currentSampleOffset = outputAudio.mozCurrentSampleOffset();
+    playHasStopped = 0;
+    if (written < audioData.length) { // firefox buffer is full, stop writing
+      return;
+    }
+  }
+  lastSampleOffset = outputAudio.mozCurrentSampleOffset();
+}
+
+function play() {
+  playing = true;
+}
+
+// setup audio output
+function init() {
+  //status = document.getElementById("status");
+  if(outputAudio.mozSetup) {
+    outputAudio.mozSetup(2, sampleRate);
+    writeAudio(); // initial write
+    var writeInterval = Math.floor(1000 * bufferSize / sampleRate);
+    setInterval(writeAudio, writeInterval);
+  }
+}
+
+function stop() {
+  playing = false;
+}
+
+/* load from harddrive using HTML5 File API */
+function loadLocal(file) {
+  var reader = new FileReader();
+  /* ugly-ass closure nonsense */
+  reader.onload = (function(theFile) {
+		     return function(e) {
+		       /* actually load mod once we're passed the file data */
+		       theFile = e.target.result; /* get the data string out of the blob object */
+		       var modFile = new ModFile(theFile);
+                       editor.loadMOD(modFile);
+		       modPlayer = new ModPlayer(modFile, 44100);
+		       //play();
+		       document.getElementById('status').innerText = '';
+		     };
+		   })(file);
+
+  reader.readAsBinaryString(file);
+  document.getElementById('status').innerText = '';
+}
+
+function loadRemote(path) {
+  var fetch = new XMLHttpRequest();
+  fetch.open('GET', path);
+  fetch.overrideMimeType("text/plain; charset=x-user-defined");
+  fetch.onloadend = function() {
+      /* munge response into a binary string */
+      var t = this.responseText || "" ;
+      var ff = [];
+      var mx = t.length;
+      var scc= String.fromCharCode;
+      for (var z = 0; z < mx; z++) {
+	ff[z] = scc(t.charCodeAt(z) & 255);
+      }
+      var binString = ff.join("");
+      
+      var modFile = new ModFile(binString);
+      modPlayer = new ModPlayer(modFile, 44100);
+      editor.loadMOD(modFile);
+      //play();
+      //document.getElementById('status').innerText = '';
+  };
+  //document.getElementById('status').innerText = 'loading...';
+  fetch.send();
+}
+
 $(document).ready(function() {
-  var editor = new EditorInput();
+  editor = new EditorInput();
   $(window).keypress(editor.handleKeypress.bind(editor));
   editor.generateEditorUI();
   editor.updateUI();
+  init();
+  //dynamicAudio = new DynamicAudio({'swf': 'dynamicaudio.swf'});  
+  loadRemote('sundance.mod');
 });
+

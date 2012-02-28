@@ -2,6 +2,9 @@
 <head>
   <link rel="stylesheet" type="text/css" href="style.css">
   <script type="text/javascript" src="jquery-1.7.1.min.js"></script>
+  <script type="text/javascript" src="jsmodplayer/modfile.js"></script>
+  <script type="text/javascript" src="jsmodplayer/modplayer.js"></script>
+  <script type="text/javascript" src="jsmodplayer/support.js"></script>
   <script type="text/javascript" src="editor.js"></script>
 </head>
 <body>
@@ -13,6 +16,7 @@
       <option>Snare</option>
       <option>Glass harp</option>
     </select>
+    <input type="button" value="Play" onclick="play()"/> <input type="button" value="Stop" onclick="stop()"/>
     <div id="channels">
     </div>
   </div>
