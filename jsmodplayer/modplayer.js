@@ -121,9 +121,9 @@ function ModPlayer(mod, rate) {
 	/* initial player state */
 	var framesPerRow = 6;
 	var currentFrame = 0;
-	var currentPattern;
-	var currentPosition;
-	var currentRow;
+	this.currentPattern = 0; //XXXjdm
+	this.currentPosition = 0; //XXXjdm
+	this.currentRow = 0; //XXXjdm
 	var exLoop = false;		//whether E6x looping is currently set
 	var exLoopStart = 0;	//loop point set up by E60
 	var exLoopEnd = 0;		//end of loop (where we hit a E6x cmd) for accurate counting
@@ -331,7 +331,7 @@ function ModPlayer(mod, rate) {
 				channel.tonePortaVolStep = 0;
 			}
 		}
-		
+	        editor.triggerUpdate(this); //XXXjdm
 	}
 	
 	function loadPattern(patternNumber) {
@@ -345,7 +345,9 @@ function ModPlayer(mod, rate) {
 		positionNumber = (positionNumber > mod.positionCount - 1) ? 0 : positionNumber;	
 		currentPosition = positionNumber;
 		loadPattern(mod.positions[currentPosition]);
+                editor.triggerUpdate(this); //XXXjdm
 	}
+        this.loadPosition = loadPosition; //XXXjdm
 	
 	loadPosition(0);
 	

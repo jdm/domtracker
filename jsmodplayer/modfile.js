@@ -30,14 +30,13 @@ function ModFile(mod) {
 	for (var i = 0; i < this.sampleCount; i++) {
 		var sampleInfo = mod.substr(20 + i*30, 30);
 		var sampleName = trimNulls(sampleInfo.substr(0, 22));
-                console.log(sampleInfo);
-                console.log(sampleName);
 		this.samples[i] = {
 			length: getWord(sampleInfo, 22) * 2,
 			finetune: sampleInfo.charCodeAt(24),
 			volume: sampleInfo.charCodeAt(25),
 			repeatOffset: getWord(sampleInfo, 26) * 2,
 			repeatLength: getWord(sampleInfo, 28) * 2,
+                        name: sampleName //XXXjdm
 		}
 	}
 	

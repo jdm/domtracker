@@ -2,7 +2,7 @@ var keyMapping;
 
 function keyCodeToString(keyCode) {
   if (isAlphaNum(keyCode)) {
-    return String.fromCharCode(keyCode);    
+    return String.fromCharCode(keyCode).toLowerCase();
   }
   if (keyMapping)
     return keyMapping[keyCode];
@@ -133,7 +133,7 @@ function isNum(c) {
 }
 
 function isAlpha(c) {
-  return (c >= 'a'.charCodeAt(0) && c <= 'z'.charCodeAt(0));
+  return (c >= 'A'.charCodeAt(0) && c <= 'Z'.charCodeAt(0));
 }
 
 function isAlphaNum(c) {
@@ -372,11 +372,33 @@ EditorInput.prototype = {
         this.generateEditorUI();
         this.updateUI();
         break;
+      
+      case 'f6':
+        stop();
+        modPlayer.loadPosition(this.mod.positions[0]);
+        play();
+        break;
+      
+      case 'f8':
+        stop();
+        break;
 
       default:
         return;
     }
     ev.preventDefault();
+  },
+  
+  generateStaticEditorUI: function() {
+    var instr = document.getElementById('instrument');
+    while (instr.childNodes.length > 0) {
+      instr.removeChild(instr.firstChild);
+    }
+    for (var i = 0; i < this.mod.samples.length; i++) {
+      var elem = document.createElement('option');
+      elem.textContent = this.mod.samples[i].name;
+      instr.appendChild(elem);
+    }
   },
   
   generateEditorUI: function() {
@@ -451,13 +473,17 @@ EditorInput.prototype = {
     var channels = $('.channel');
     var idx = 0;
     var self = this;
+    var highlightedCol;
     $(channels).each(function() {
       var row = $($(this).find('.row')[self.row]);
       row.addClass('row-highlight');
       if (idx++ == self.channel) {
-        $(row.find('span')[self.column]).addClass('highlight');
+        highlightedCol = row.find('span')[self.column];
+        $(highlightedCol).addClass('highlight');
       }
     });
+    if (highlightedCol)
+      highlightedCol.scrollIntoView(false);
   },
   
   loadMOD: function(mod) {
@@ -488,7 +514,20 @@ EditorInput.prototype = {
       }
       this.patterns.push(new Pattern(this.numChannels, 64, rowData));
     }
+    this.generateStaticEditorUI();
     this.generateEditorUI();
+    this.updateUI();
+  },
+  
+  triggerUpdate: function(player) {
+    if (!this.mod)
+      return;
+    this.position = player.currentPosition;
+    var oldPattern = this.pattern;
+    this.pattern = this.mod.positions[this.position];
+    this.row = player.currentRow;
+    if (oldPattern != this.pattern)
+      this.generateEditorUI();
     this.updateUI();
   },
   
@@ -607,7 +646,7 @@ function loadRemote(path) {
 
 $(document).ready(function() {
   editor = new EditorInput();
-  $(window).keypress(editor.handleKeypress.bind(editor));
+  $(window).keydown(editor.handleKeypress.bind(editor));
   editor.generateEditorUI();
   editor.updateUI();
   init();
