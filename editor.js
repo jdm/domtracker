@@ -181,7 +181,7 @@ function EditorInput() {
   this.numPatterns = 1;
   this.numColumns = 4;
   
-  this.sample = 0;
+  this.sample = 1;
 
   this.channel = 0;
   this.column = 0;
@@ -280,19 +280,16 @@ EditorInput.prototype = {
       case 0:
         if (isNum(keyCode))
           break;
-        var row = this._currentRow();
-        row.note = noteFromKey(keyCodeToString(keyCode));
-        row.instrument = this.sample + (this.sample < 10 ? " " : "");
+        var row = this.mod.patterns[this.pattern][this.row][this.channel];
+        row.period = periodFromKey(keyCodeToString(keyCode));
+        row.sample = this.sample;
         this.adjustRow(1);
         break;
       case 1:
         return;
       case 2:
         if (!isNum(keyCode))
-          break;
-        var row = this._currentRow();
-        var vol = 'volume' in row ? row.volume : '00';
-        row.volume = vol.charAt(1) + String.fromCharCode(keyCode);
+          return;
         break;
     }
     this.generateEditorUI();
@@ -375,7 +372,7 @@ EditorInput.prototype = {
       
       case 'f6':
         stop();
-        modPlayer.loadPosition(this.mod.positions[0]);
+        modPlayer.loadPosition(0);
         play();
         break;
       
@@ -402,10 +399,13 @@ EditorInput.prototype = {
   },
   
   generateEditorUI: function() {
+    if (!this.mod)
+      return;
+
     var channels = $('.channel');
     channels.each(function() { this.parentNode.removeChild(this); });
 
-    var pattern = this.patterns[this.pattern];
+    var pattern = this.mod.patterns[this.pattern];
 
     for (var i = 0; i < this.numChannels; i++) {
       var channel = document.createElement('span');
@@ -420,51 +420,37 @@ EditorInput.prototype = {
       header.textContent = "Channel " + (i + 1);
       channel.appendChild(header);
 
-      for (var j = 0; j < pattern.numRows; j++) {
-        var row = pattern.channelData[i].rows[j];
+      for (var j = 0; j < 64; j++) {
+        var row = pattern[j][i];
         var rowElem = document.createElement('div');
         $(rowElem).addClass('row');
 
         var elem = document.createElement('span');
-        var hasContent = 'note' in row;
+        var hasContent = !!row.period;
         $(elem).addClass(hasContent ? 'note' : 'blank');
-        elem.textContent = hasContent ? row.note : '...';
+        elem.textContent = hasContent ? periodToDisplay(row.period) : '...';
         rowElem.appendChild(elem);
 
         elem = document.createElement('span');
-        hasContent = 'instrument' in row;
+        hasContent = !!row.sample;
         $(elem).addClass(hasContent ? 'instrument' : 'blank');
-        elem.textContent = hasContent ? row.instrument : '..';
+        elem.textContent = hasContent ? (row.sample < 10 ? "0" : "") + row.sample : '..';
         rowElem.appendChild(elem);
 
         elem = document.createElement('span');
-        hasContent = 'volume' in row;
+        hasContent = false;
         $(elem).addClass(hasContent ? 'volume' : 'blank');
-        elem.textContent = hasContent ? row.volume : '..';
+        elem.textContent = '..';
         rowElem.appendChild(elem);
 
         elem = document.createElement('span');
-        $(elem).addClass(effectToClass(row));
-        elem.textContent = 'effect' in row ? row.effect : '...';
+        $(elem).addClass(effectToClass(row.effect, row.effectParameter));
+        elem.textContent = !!row.effect ? effectToDisplay(row.effect, row.effectParameter) : '...';
         rowElem.appendChild(elem);
 
         channel.appendChild(rowElem);
       }
-    }
-    
-    function effectToClass(row) {
-      if (!('effect' in row))
-        return 'blank';
-      switch (row.effect[0]) {
-        case 'C':
-          return 'setvolume';
-        case 'D':
-          return 'patternbreak';
-        default:
-          break;
-      }
-      return 'effect';
-    }
+    }    
   },
   
   updateUI: function() {
@@ -492,28 +478,6 @@ EditorInput.prototype = {
     this.numChannels = mod.channelCount;
     this.position = 0;
     this.pattern = mod.positions[this.position];
-    this.patterns = [];
-    for (var i = 0; i < this.numPatterns; i++) {
-      var rowData = [];
-      for (var j = 0; j < this.numChannels; j++) {
-        var rows = [];
-        for (var k = 0; k < 64; k++) {
-          var modRow = mod.patterns[i][k][j];
-          var data = {};
-          if (modRow.period && validNote(modRow.period))
-            data.note = periodToDisplay(modRow.period);
-          if (modRow.sample)
-            data.instrument = (modRow.sample < 10 ? "0" : "") + modRow.sample;
-          if (modRow.effect)
-            data.effect = modRow.effect.toString(16).toUpperCase() +
-                            (modRow.effectParameter < 16 ? "0" : "" ) +
-                            modRow.effectParameter.toString(16).toUpperCase();
-          rows.push(data);
-        }
-        rowData.push(rows);
-      }
-      this.patterns.push(new Pattern(this.numChannels, 64, rowData));
-    }
     this.generateStaticEditorUI();
     this.generateEditorUI();
     this.updateUI();
@@ -539,10 +503,96 @@ function validNote(period) {
   return noteNum >= 1 && noteNum <= 120;
 }
 
+function periodFromKey(key) {
+  var baseOctave = 2;
+  var idx = ["z", "x", "c", "v", "b", "n", "m", ",", ".", "/", "", "",
+             "a", "s", "d", "f", "g", "h", "j", "k", "l", ";", "'", "\\",
+             "q", "w", "e", "r", "t", "y", "u", "i", "o", "p", "[", "]"].indexOf(key);
+  return ModPeriodTable[0][idx % 12 + (baseOctave + Math.floor(idx / 12)) * 12];
+}
+
 function periodToDisplay(period) {
   var noteNum = ModPeriodToNoteNumber[period];
   var name = ["C-", "C#", "D-", "D#", "E-", "F-", "F#", "G-", "G#", "A-", "A#", "B-"][(noteNum) % 12];
   return name + (Math.floor(noteNum / 12) + 2);
+}
+
+function effectToDisplay(effect, parameter) {
+  return effect.toString(16).toUpperCase() +
+    (parameter < 16 ? "0" : "") +
+    parameter.toString(16).toUpperCase();
+}
+
+function effectToClass(fx, parameter) {
+  switch (fx) {
+  case 0x00:
+    return 'blank'; //arpeggio!!!
+  case 0x01:
+    return 'portamentoup';
+  case 0x02:
+    return 'portamentodown';
+  case 0x03:
+    return 'portamento';
+  case 0x04:
+    return 'vibrato';
+  case 0x05:
+    return 'potamento-volslide';
+  case 0x06:
+    return 'vibrato-volslide';
+  case 0x07:
+    return 'tremolo';
+  case 0x08:
+    return 'panning';
+  case 0x09:
+    return 'offset';
+  case 0x0a:
+    return 'volumeslide';
+  case 0x0b:
+    return 'positionjump';
+  case 0x0c:
+    return 'setvolume';
+  case 0x0d:
+    return 'patternbreak';
+  case 0x0e:
+    switch ((parameter & 0xF0) >> 4) {
+      case 0x00:
+        return 'setfilter';
+      case 0x01:
+        return 'fineslideup';
+      case 0x02:
+        return 'fineslidedown';
+      case 0x03:
+        return 'setglissando';
+      case 0x04:
+        return 'setvibrato';
+      case 0x05:
+        return 'setfinetune';
+      case 0x06:
+        return 'looppattern';
+      case 0x07:
+        return 'settremolo';
+      case 0x08:
+        return 'blank';
+      case 0x09:
+        return 'retrigger';
+      case 0x0a:
+        return 'finevolumeslideup';
+      case 0x0b:
+        return 'finevolumeslidedown';
+      case 0x0c:
+        return 'cutsample';
+      case 0x0d:
+        return 'delaysample';
+      case 0x0e:
+        return 'delaypattern';
+      case 0x0f:
+        return 'invertloop';
+    }
+  case 0x0f:
+    return 'setspeed';
+  default:
+    return 'blank';
+  }
 }
 
 var modPlayer;

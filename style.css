@@ -1,3 +1,7 @@
+select {
+    margin-bottom: 1.5em;
+}
+
 .highlight {
     background-color: cyan;
 }
@@ -33,11 +37,25 @@
     color: black;
 }
 
+.instrument {
+    color: darkblue;
+}
+
+.volume {
+    color: darkgreen;
+}
+
 .blank {
     color: black;
 }
 
+/* Effect colors */
+
 .setvolume {
+    color: darkgreen;
+}
+
+.volumeslide {
     color: darkgreen;
 }
 
@@ -45,14 +63,6 @@
     color: darkred;
 }
 
-.volume {
-    color: darkgreen;
-}
-
-.instrument {
-    color: darkblue;
-}
-
-select {
-    margin-bottom: 1.5em;
+.setspeed {
+    color: darkred;
 }
