@@ -133,7 +133,8 @@ function ModPlayer(mod, rate) {
 	var	breakRow = 0;
 	var delayRows = false; //EEx pattern delay.
 	
-	var channels = [];
+	this.channels = [];
+        var channels = this.channels;
 	for (var chan = 0; chan < mod.channelCount; chan++) {
 		channels[chan] = {
 			playing: false,
@@ -154,6 +155,29 @@ function ModPlayer(mod, rate) {
 			arpeggioActive: false
 		};
 	}
+  
+        function prepareChannel(channel, note) {
+	  channel.playing = true;
+	  channel.samplePosition = 0;
+	  channel.ticksSinceStartOfSample = 0; /* that's 'sample' as in 'individual volume reading' */
+	  if (note.sample != 0) {
+	    channel.sample = mod.samples[note.sample - 1];
+	    channel.sampleNum = note.sample - 1;
+	    channel.volume = channel.sample.volume;
+	    channel.finetune = channel.sample.finetune;
+	  }
+	  if (note.period != 0) { // && note.effect != 0x03
+	    //the note specified in a tone porta command is not actually played
+	    if (note.effect != 0x03) {
+	      channel.noteNumber = ModPeriodToNoteNumber[note.period];
+	      channel.ticksPerSample = ModPeriodTable[channel.finetune][channel.noteNumber] * 2;
+	    } else {
+	      channel.noteNumber = ModPeriodToNoteNumber[prevNote.period]
+	      channel.ticksPerSample = ModPeriodTable[channel.finetune][channel.noteNumber] * 2;
+	    }
+	  }          
+        }
+        this.prepareChannel = prepareChannel;
 	
 	function loadRow(rowNumber) {
 		currentRow = rowNumber;
@@ -161,7 +185,7 @@ function ModPlayer(mod, rate) {
 		doBreak = false;
 		breakPos = 0;
 		breakRow = 0;
-
+                
 		for (var chan = 0; chan < mod.channelCount; chan++) {
 			var channel = channels[chan];
 			var prevNote = channel.prevNote;
@@ -170,25 +194,7 @@ function ModPlayer(mod, rate) {
 					channel.sampleNum = 0;
 			}
 			if (note.period != 0 || note.sample != 0) {
-				channel.playing = true;
-				channel.samplePosition = 0;
-				channel.ticksSinceStartOfSample = 0; /* that's 'sample' as in 'individual volume reading' */
-				if (note.sample != 0) {
-					channel.sample = mod.samples[note.sample - 1];
-					channel.sampleNum = note.sample - 1;
-					channel.volume = channel.sample.volume;
-					channel.finetune = channel.sample.finetune;
-				}
-				if (note.period != 0) { // && note.effect != 0x03
-					//the note specified in a tone porta command is not actually played
-					if (note.effect != 0x03) {
-						channel.noteNumber = ModPeriodToNoteNumber[note.period];
-						channel.ticksPerSample = ModPeriodTable[channel.finetune][channel.noteNumber] * 2;
-					} else {
-						channel.noteNumber = ModPeriodToNoteNumber[prevNote.period]
-						channel.ticksPerSample = ModPeriodTable[channel.finetune][channel.noteNumber] * 2;
-					}
-				}
+                            prepareChannel(channel, note);
 			}
 			channel.finePeriodDelta = 0;
 			channel.fineVolumeDelta = 0;
@@ -454,13 +460,13 @@ function ModPlayer(mod, rate) {
 
 	}
 	
-	this.getSamples = function(sampleCount) {
+	this.getSamples = function(sampleCount, advanceFrame) {
 		samples = [];
 		var i = 0;
 		while (i < sampleCount) {
 			ticksSinceStartOfFrame += ticksPerOutputSample;
 			while (ticksSinceStartOfFrame >= ticksPerFrame) {
-				doFrame();
+				if (advanceFrame) doFrame();
 				ticksSinceStartOfFrame -= ticksPerFrame;
 			}
 			

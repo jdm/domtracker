@@ -54,80 +54,6 @@ function keyCodeToString(keyCode) {
   return keyMapping[keyCode];
 }
 
-function noteFromKey(key) {
-  var base = 4;
-  switch (key) {
-    case 'z':
-      return 'C-' + base;
-    case 'x':
-      return 'C#' + base;
-    case 'c':
-      return 'D-' + base;
-    case 'v':
-      return 'D#' + base;
-    case 'b':
-      return 'E-' + base;
-    case 'n':
-      return 'F-' + base;
-    case 'm':
-      return 'F#' + base;
-    case ',':
-      return 'G-' + base;
-    case '.':
-      return 'G#' + base;
-    case '/':
-      return 'A-' + base;
-    case 'a':
-      return 'C-' + (base + 1);
-    case 's':
-      return 'C#' + (base + 1);
-    case 'd':
-      return 'D-' + (base + 1);
-    case 'f':
-      return 'D#' + (base + 1);
-    case 'g':
-      return 'E-' + (base + 1);
-    case 'h':
-      return 'F-' + (base + 1);
-    case 'j':
-      return 'F#' + (base + 1);
-    case 'k':
-      return 'G-' + (base + 1);
-    case 'l':
-      return 'G#' + (base + 1);
-    case ';':
-      return 'A-' + (base + 1);
-    case '\'':
-      return 'A#' + (base + 1);
-    case '\\':
-      return 'B-' + (base + 1);
-    case 'q':
-      return 'C-' + (base + 2);
-    case 'w':
-      return 'C#' + (base + 2);
-    case 'e':
-      return 'D-' + (base + 2);
-    case 'r':
-      return 'D#' + (base + 2);
-    case 't':
-      return 'E-' + (base + 2);
-    case 'y':
-      return 'F-' + (base + 2);
-    case 'u':
-      return 'F#' + (base + 2);
-    case 'i':
-      return 'G-' + (base + 2);
-    case 'o':
-      return 'G#' + (base + 2);
-    case 'p':
-      return 'A-' + (base + 2);
-    case '[':
-      return 'A#' + (base + 2);
-    case ']':
-      return 'B-' + (base + 2);
-  }
-}
-
 function isNum(c) {
   return (c >= '0'.charCodeAt(0) && c <= '9'.charCodeAt(0));
 }
@@ -139,42 +65,6 @@ function isAlpha(c) {
 function isAlphaNum(c) {
   return isAlpha(c) || isNum(c);
 }
-
-function ChannelData(numRows, rowData) {
-  if (rowData) {
-    this.rows = rowData;
-  } else {
-    this.rows = [];
-    while (numRows--) {
-      this.rows.push({});
-    }
-  }
-}
-
-ChannelData.prototype = {
-  insertSpace: function(row) {
-    var newRows = this.rows.slice(0, row);
-    newRows.push({});
-    newRows = newRows.concat(this.rows.slice(row, this.rows.length - 1));
-    this.rows = newRows;
-  },
-  removeLine: function(row) {
-    this.rows.splice(row, 1);
-    this.rows.push({});
-  }
-};
-
-function Pattern(numChannels, numRows, rowData) {
-  this.numRows = numRows;
-  this.channelData = [];
-  while (numChannels--) {
-    this.channelData.push(
-      new ChannelData(numRows, rowData ? rowData.shift() : null));
-  }
-}
-
-Pattern.prototype = {
-};
 
 function EditorInput() {
   this.numChannels = 8;
@@ -188,12 +78,6 @@ function EditorInput() {
   this.row = 0;
   this.pattern = 0;
   this.position = 0;
-
-  this.patterns = [];
-  var n = this.numChannels;
-  while (n--) {
-    this.patterns.push(new Pattern(this.numChannels, 64));
-  }
 }
 
 EditorInput.prototype = {
@@ -217,7 +101,7 @@ EditorInput.prototype = {
 
   adjustRow: function(mod, stayWithinPattern) {
     this.row += mod;
-    if (this.row == this.patterns[this.pattern].numRows) {
+    if (this.row == 64) {
       if (!stayWithinPattern && this.adjustPattern(1)) {
         this.row = 0;
       } else {
@@ -225,7 +109,7 @@ EditorInput.prototype = {
       }      
     } else if (this.row == -1) {
       if (!stayWithinPattern && this.adjustPattern(-1)) {
-        this.row = this.patterns[this.pattern].numRows - 1;
+        this.row = 64;
       } else {
         this.row++;
       }
@@ -263,16 +147,12 @@ EditorInput.prototype = {
   adjustSample: function(mod) {
     var instr = document.getElementById('instrument');
     this.sample += mod;
-    if (this.sample == -1) {
+    if (this.sample == 0) {
       this.sample++;
-    } else if (this.sample == instr.getElementsByTagName('option').length) {
+    } else if (this.sample > instr.getElementsByTagName('option').length) {
       this.sample--;
     }
-    instr.selectedIndex = this.sample;
-  },
-  
-  _currentRow: function() {
-    return this.patterns[this.pattern].channelData[this.channel].rows[this.row];
+    instr.selectedIndex = this.sample - 1;
   },
   
   overwriteValue: function(keyCode) {
@@ -284,6 +164,9 @@ EditorInput.prototype = {
         row.period = periodFromKey(keyCodeToString(keyCode));
         row.sample = this.sample;
         this.adjustRow(1);
+        modPlayer.prepareChannel(modPlayer.channels[this.channel],
+                                 {'period': row.period, 'sample': row.sample});
+        playing = 2;
         break;
       case 1:
         return;
@@ -345,14 +228,18 @@ EditorInput.prototype = {
 
       case 'end':
         if (this.column == this.numColumns && this.channel == this.numChannels)
-          this.row = this.patterns[this.pattern].numRows;
+          this.row = 64;
         this.column = this.numColumns;
         this.channel = this.numChannels;
         this.updateUI();
         break;
 
       case 'backspace':
-        this.patterns[this.pattern].channelData[this.channel].removeLine(this.row);
+        for (var i = this.row; i < 63; i++) {
+          this.mod.patterns[this.pattern][i][this.channel] = this.mod.patterns[this.pattern][i + 1][this.channel];
+        }
+        this.mod.patterns[this.pattern][63][this.channel] =
+            {'period': 0, 'sample': 0, 'effect': 0, 'effectParameter': 0};
         this.generateEditorUI();
         this.updateUI();
         break;
@@ -360,12 +247,12 @@ EditorInput.prototype = {
       case 'delete':
         var colName;
         switch (this.column) {
-          case 0: colName = "note"; break;
-          case 1: colName = "instrument"; break;
+          case 0: colName = "period"; break;
+          case 1: colName = "sample"; break;
           case 2: colName = "volume"; break;
           case 3: colName = "effect"; break;
         }
-        delete this.patterns[this.pattern].channelData[this.channel].rows[this.row][colName];
+        delete this.mod.patterns[this.pattern][this.row][this.channel][colName];
         this.generateEditorUI();
         this.updateUI();
         break;
@@ -505,9 +392,9 @@ function validNote(period) {
 
 function periodFromKey(key) {
   var baseOctave = 2;
-  var idx = ["z", "x", "c", "v", "b", "n", "m", ",", ".", "/", "", "",
+  var idx = ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p", "[", "]",
              "a", "s", "d", "f", "g", "h", "j", "k", "l", ";", "'", "\\",
-             "q", "w", "e", "r", "t", "y", "u", "i", "o", "p", "[", "]"].indexOf(key);
+             "z", "x", "c", "v", "b", "n", "m", ",", ".", "/", "", ""].indexOf(key);
   return ModPeriodTable[0][idx % 12 + (baseOctave + Math.floor(idx / 12)) * 12];
 }
 
@@ -598,7 +485,7 @@ function effectToClass(fx, parameter) {
 var modPlayer;
 var editor;
 
-var playing = false;
+var playing = 0;
 var channels = 2;	//stereo
 var sampleRate = 44100;
 var bufferSize = 2048 * channels; 
@@ -616,7 +503,7 @@ function writeAudio() {
   var playHasStopped = currentSampleOffset == lastSampleOffset; // if audio stopped playing, just send data to trigger it to play again.
   while (currentSampleOffset + prebufferSize >= currentWritePosition || playHasStopped ) {
     // generate audio
-    var audioData = modPlayer.getSamples(bufferSize);
+    var audioData = modPlayer.getSamples(bufferSize, playing == 1);
     
     // write audio	
     var written = outputAudio.mozWriteAudio(audioData);
@@ -631,7 +518,7 @@ function writeAudio() {
 }
 
 function play() {
-  playing = true;
+  playing = 1;
 }
 
 // setup audio output
@@ -646,7 +533,10 @@ function init() {
 }
 
 function stop() {
-  playing = false;
+  playing = 0;
+  for (var i = 0; i < editor.mod.channelCount; i++) {
+    modPlayer.channels[i].playing = false;
+  }
 }
 
 /* load from harddrive using HTML5 File API */
