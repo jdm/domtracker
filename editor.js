@@ -71,8 +71,6 @@ function EditorInput() {
   this.numPatterns = 1;
   this.numColumns = 4;
   
-  this.sample = 1;
-
   this.channel = 0;
   this.column = 0;
   this.row = 0;
@@ -146,13 +144,13 @@ EditorInput.prototype = {
   
   adjustSample: function(mod) {
     var instr = document.getElementById('instrument');
-    this.sample += mod;
-    if (this.sample == 0) {
-      this.sample++;
-    } else if (this.sample > instr.getElementsByTagName('option').length) {
-      this.sample--;
+    var sample = instr.selectedIndex + mod;
+    if (sample == 0) {
+      sample++;
+    } else if (sample == instr.getElementsByTagName('option').length) {
+      sample--;
     }
-    instr.selectedIndex = this.sample - 1;
+    instr.selectedIndex = sample;
   },
   
   overwriteValue: function(keyCode) {
@@ -162,8 +160,8 @@ EditorInput.prototype = {
           break;
         var row = this.mod.patterns[this.pattern][this.row][this.channel];
         row.period = periodFromKey(keyCodeToString(keyCode));
-        row.sample = this.sample;
-        this.adjustRow(1);
+        row.sample = parseInt(document.getElementById('instrument').selectedIndex + 1);
+        this.adjustRow(parseInt(document.getElementById('notegap').value));
         modPlayer.prepareChannel(modPlayer.channels[this.channel],
                                  {'period': row.period, 'sample': row.sample});
         playing = 2;
@@ -180,7 +178,7 @@ EditorInput.prototype = {
   },
 
   handleKeypress: function(ev) {
-    if (ev.altKey || ev.ctrlKey /*|| ev.metaKey*/)
+    if (ev.altKey || ev.ctrlKey /*|| ev.metaKey*/ || ev.target != document.body)
       return;
 
     var keyCode = ev.keyCode || ev.which;
@@ -195,11 +193,19 @@ EditorInput.prototype = {
 
     switch (key) {
       case 'left':
-        this.adjustColumn(-1);
+        if (ev.metaKey) {
+          this.adjustPattern(-1);
+        } else {
+          this.adjustColumn(-1);          
+        }
         break;
 
       case 'right':
-        this.adjustColumn(1);
+        if (ev.metaKey) {
+          this.adjustPattern(1);
+        } else {
+          this.adjustColumn(1);          
+        }
         break;
 
       case 'up':
@@ -217,7 +223,7 @@ EditorInput.prototype = {
           this.adjustRow(1);
         }
         break;
-
+      
       case 'home':
         if (this.column == 1)
           this.row = 1;
