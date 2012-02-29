@@ -280,7 +280,7 @@ EditorInput.prototype = {
     }
     for (var i = 0; i < this.mod.samples.length; i++) {
       var elem = document.createElement('option');
-      elem.textContent = this.mod.samples[i].name;
+      elem.textContent = (i + 1) + ". " + this.mod.samples[i].name;
       instr.appendChild(elem);
     }
   },
