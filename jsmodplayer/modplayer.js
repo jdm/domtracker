@@ -307,7 +307,7 @@ ModPlayer.prototype = {
 	      //set loop end with E6x
 	      this.exLoopEnd = this.currentRow;
 	      //activate the loop only if it's new
-	      if (!exLoop) {
+	      if (!this.exLoop) {
 		this.exLoop = true;
 		this.exLoopCount = note.extEffectParameter;
 	      }
