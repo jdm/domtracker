@@ -21,6 +21,10 @@ select {
     margin-right: .5em;
 }
 
+.editor span :last-child {
+    margin-left: -.5em;
+}
+
 .channel {
     border: 1px solid;
     padding: 2px;

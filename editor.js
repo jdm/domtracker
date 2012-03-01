@@ -69,7 +69,7 @@ function isAlphaNum(c) {
 function EditorInput() {
   this.numChannels = 8;
   this.numPatterns = 1;
-  this.numColumns = 4;
+  this.numColumns = 5;
   
   this.channel = 0;
   this.column = 0;
@@ -154,11 +154,11 @@ EditorInput.prototype = {
   },
   
   overwriteValue: function(keyCode) {
+    var row = this.mod.patterns[this.pattern][this.row][this.channel];
     switch (this.column) {
       case 0:
         if (isNum(keyCode))
           break;
-        var row = this.mod.patterns[this.pattern][this.row][this.channel];
         row.period = periodFromKey(keyCodeToString(keyCode));
         row.sample = parseInt(document.getElementById('instrument').selectedIndex + 1);
         this.adjustRow(parseInt(document.getElementById('notegap').value));
@@ -171,6 +171,17 @@ EditorInput.prototype = {
       case 2:
         if (!isNum(keyCode))
           return;
+        break;
+      case 3:
+        if (!isNum(keyCode) && (keyCode < 'A'.charCodeAt(0) || keyCode > 'F'.charCodeAt(0)))
+          return;
+        row.effect = parseInt(String.fromCharCode(keyCode), 16);
+        break;
+      case 4:
+        if (!isNum(keyCode) && (keyCode < 'A'.charCodeAt(0) || keyCode > 'F'.charCodeAt(0)))
+          return;
+        row.effectParameter = parseInt(padNumber(row.effectParameter, 16).substr(1) +
+                                parseInt(String.fromCharCode(keyCode), 16), 16);
         break;
     }
     this.generateEditorUI();
@@ -251,14 +262,16 @@ EditorInput.prototype = {
         break;
 
       case 'delete':
-        var colName;
+        var cols = [];
         switch (this.column) {
-          case 0: colName = "period"; break;
-          case 1: colName = "sample"; break;
-          case 2: colName = "volume"; break;
-          case 3: colName = "effect"; break;
+          case 0: cols.push("period"); break;
+          case 1: cols.push("sample"); break;
+          case 2: cols.push("volume"); break;
+          case 3: cols.push("effect"); /* fallthrough */
+          case 4: cols.push("effectParameter"); break;
         }
-        delete this.mod.patterns[this.pattern][this.row][this.channel][colName];
+        for (var i = 0; i < cols.length; i++)
+          this.mod.patterns[this.pattern][this.row][this.channel][cols[i]] = 0;
         this.generateEditorUI();
         this.updateUI();
         break;
@@ -338,7 +351,7 @@ EditorInput.prototype = {
         elem = document.createElement('span');
         hasContent = !!row.sample;
         $(elem).addClass(hasContent ? 'instrument' : 'blank');
-        elem.textContent = hasContent ? (row.sample < 10 ? "0" : "") + row.sample : '..';
+        elem.textContent = hasContent ? padNumber(row.sample, 10) : '..';
         rowElem.appendChild(elem);
 
         elem = document.createElement('span');
@@ -349,7 +362,14 @@ EditorInput.prototype = {
 
         elem = document.createElement('span');
         $(elem).addClass(effectToClass(row.effect, row.effectParameter));
-        elem.textContent = !!row.effect ? effectToDisplay(row.effect, row.effectParameter) : '...';
+        elem.textContent = !!row.effect || !!row.effectParameter ?
+                             row.effect.toString(16).toUpperCase() : '.';
+        rowElem.appendChild(elem);
+
+        elem = document.createElement('span');
+        $(elem).addClass(effectToClass(row.effect, row.effectParameter));
+        elem.textContent = !!row.effect || !!row.effectParameter ?
+                             padNumber(row.effectParameter, 16) : '..';
         rowElem.appendChild(elem);
 
         channel.appendChild(rowElem);
@@ -425,12 +445,6 @@ function periodToDisplay(period) {
   return name + (Math.floor(noteNum / 12) + 2);
 }
 
-function effectToDisplay(effect, parameter) {
-  return effect.toString(16).toUpperCase() +
-    (parameter < 16 ? "0" : "") +
-    parameter.toString(16).toUpperCase();
-}
-
 function effectToClass(fx, parameter) {
   switch (fx) {
   case 0x00:
@@ -501,6 +515,10 @@ function effectToClass(fx, parameter) {
   default:
     return 'blank';
   }
+}
+
+function padNumber(num, base) {
+  return (num < base ? "0" : "") + num.toString(base).toUpperCase();
 }
 
 var modPlayer;

@@ -11,8 +11,6 @@ sundance.mod by Purple Motion / Future Crew.
 
 ## TODO ##
 
-- hook the pattern editor up to sound generation (changes are currently not reflected in the audio)
-- trigger sample sounds when placing notes
 - pattern position widget
 - more keybindings, customizable keybindings
 - channel solo/mute
@@ -21,7 +19,6 @@ sundance.mod by Purple Motion / Future Crew.
 - loading module files (remote/local)
 - optimize pattern redraw and update
 - informative display for effect/sample name under cursor
-- separate column for effect vs. effect parameter
 - single row stepping
 - sample editor (oh nooooooo)
 - more module file types? (oh noooooooooooooooooooooo)
