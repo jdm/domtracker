@@ -269,6 +269,12 @@ EditorInput.prototype = {
         play();
         break;
       
+      case 'f7':
+        stop();
+        modPlayer.loadPosition(this.position);
+        playing = 3;
+        break;
+      
       case 'f8':
         stop();
         break;
@@ -304,15 +310,12 @@ EditorInput.prototype = {
       var channel = document.createElement('span');
       $(channel).addClass('channel');
       document.getElementById('channels').appendChild(channel);
-      while (channel.childNodes.length > 0) {
-        channel.removeChild(channel.firstChild);
-      }
 
       var header = document.createElement('div');
       $(header).addClass('header');
       header.textContent = "Channel " + (i + 1);
       channel.appendChild(header);
-
+      
       for (var j = 0; j < 64; j++) {
         var row = pattern[j][i];
         var rowElem = document.createElement('div');
@@ -379,6 +382,11 @@ EditorInput.prototype = {
   triggerUpdate: function(player) {
     if (!this.mod)
       return;
+    console.log(this.position + ", " + player.currentPosition);
+    if (playing == 3 && this.position != player.currentPosition) {
+      player.loadPosition(this.position);
+      return;
+    }
     this.position = player.currentPosition;
     var oldPattern = this.pattern;
     this.pattern = this.mod.positions[this.position];
@@ -509,7 +517,7 @@ function writeAudio() {
   var playHasStopped = currentSampleOffset == lastSampleOffset; // if audio stopped playing, just send data to trigger it to play again.
   while (currentSampleOffset + prebufferSize >= currentWritePosition || playHasStopped ) {
     // generate audio
-    var audioData = modPlayer.getSamples(bufferSize, playing == 1);
+    var audioData = modPlayer.getSamples(bufferSize, playing != 2);
     
     // write audio	
     var written = outputAudio.mozWriteAudio(audioData);
@@ -555,7 +563,7 @@ function loadLocal(file) {
 		       theFile = e.target.result; /* get the data string out of the blob object */
 		       var modFile = new ModFile(theFile);
                        editor.loadMOD(modFile);
-		       modPlayer = new ModPlayer(modFile, 44100);
+		       modPlayer = ModPlayer(modFile, 44100);
 		       //play();
 		       document.getElementById('status').innerText = '';
 		     };
