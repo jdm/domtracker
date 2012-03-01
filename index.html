@@ -9,6 +9,9 @@
 </head>
 <body>
   <div id="editor" class="editor">
+    <label for="localfile">Load MOD:</label> <input type="file" id="localfile" onchange="loadLocal(this.files[0])" />
+    <br/>
+    <hr/>
     <label for="instrument">Current: </label>
     <select id="instrument">
     </select>

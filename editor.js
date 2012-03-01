@@ -607,14 +607,14 @@ function loadLocal(file) {
 		       theFile = e.target.result; /* get the data string out of the blob object */
 		       var modFile = new ModFile(theFile);
                        editor.loadMOD(modFile);
-		       modPlayer = ModPlayer(modFile, 44100);
+		       modPlayer = new ModPlayer(modFile, 44100);
 		       //play();
-		       document.getElementById('status').innerText = '';
+		       //document.getElementById('status').innerText = '';
 		     };
 		   })(file);
 
   reader.readAsBinaryString(file);
-  document.getElementById('status').innerText = '';
+  //document.getElementById('status').innerText = '';
 }
 
 function loadRemote(path) {
