@@ -107,7 +107,7 @@ EditorInput.prototype = {
       }      
     } else if (this.row == -1) {
       if (!stayWithinPattern && this.adjustPattern(-1)) {
-        this.row = 64;
+        this.row = 63;
       } else {
         this.row++;
       }
@@ -225,18 +225,18 @@ EditorInput.prototype = {
         break;
       
       case 'home':
-        if (this.column == 1)
-          this.row = 1;
-        this.column = 1;
-        this.channel = 1;
+        if (this.column == 0)
+          this.row = 0;
+        this.column = 0;
+        this.channel = 0;
         this.updateUI();
         break;
 
       case 'end':
-        if (this.column == this.numColumns && this.channel == this.numChannels)
-          this.row = 64;
-        this.column = this.numColumns;
-        this.channel = this.numChannels;
+        if (this.column == this.numColumns - 1 && this.channel == this.numChannels - 1)
+          this.row = 63;
+        this.column = this.numColumns - 1;
+        this.channel = this.numChannels - 1;
         this.updateUI();
         break;
 
@@ -261,6 +261,14 @@ EditorInput.prototype = {
         delete this.mod.patterns[this.pattern][this.row][this.channel][colName];
         this.generateEditorUI();
         this.updateUI();
+        break;
+      
+      case 'f5':
+        stop();
+        var row = this.row;
+        modPlayer.loadPosition(this.position);
+        modPlayer.loadRow(row);
+        play();
         break;
       
       case 'f6':
@@ -382,7 +390,6 @@ EditorInput.prototype = {
   triggerUpdate: function(player) {
     if (!this.mod)
       return;
-    console.log(this.position + ", " + player.currentPosition);
     if (playing == 3 && this.position != player.currentPosition) {
       player.loadPosition(this.position);
       return;
