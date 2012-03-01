@@ -164,7 +164,7 @@ EditorInput.prototype = {
         this.adjustRow(parseInt(document.getElementById('notegap').value));
         modPlayer.prepareChannel(modPlayer.channels[this.channel],
                                  {'period': row.period, 'sample': row.sample});
-        playing = 2;
+        playing = PLAYING_SAMPLE;
         break;
       case 1:
         return;
@@ -189,7 +189,7 @@ EditorInput.prototype = {
   },
 
   handleKeypress: function(ev) {
-    if (ev.altKey || ev.ctrlKey /*|| ev.metaKey*/ || ev.target != document.body)
+    if (ev.altKey || ev.target != document.body)
       return;
 
     var keyCode = ev.keyCode || ev.which;
@@ -293,11 +293,22 @@ EditorInput.prototype = {
       case 'f7':
         stop();
         modPlayer.loadPosition(this.position);
-        playing = 3;
+        playing = PLAYING_PATTERN;
         break;
       
       case 'f8':
         stop();
+        break;
+      
+      case 'return':
+        if (!ev.ctrlKey)
+          return;
+        //stop();
+        var row = this.row;
+        if (modPlayer.currentPosition != this.position)
+          modPlayer.loadPosition(this.position);
+        modPlayer.loadRow(row);
+        playing = PLAYING_ROW;
         break;
 
       default:
@@ -410,13 +421,15 @@ EditorInput.prototype = {
   triggerUpdate: function(player) {
     if (!this.mod)
       return;
-    if (playing == 3 && this.position != player.currentPosition) {
+    if (playing == PLAYING_PATTERN && this.position != player.currentPosition) {
       player.loadPosition(this.position);
       return;
     }
     this.position = player.currentPosition;
     var oldPattern = this.pattern;
     this.pattern = this.mod.positions[this.position];
+    if (playing == PLAYING_ROW && player.currentRow != this.row)
+      playing = 2;
     this.row = player.currentRow;
     if (oldPattern != this.pattern)
       this.generateEditorUI();
@@ -524,6 +537,12 @@ function padNumber(num, base) {
 var modPlayer;
 var editor;
 
+var STOPPED = 0;
+var PLAYING = 1;
+var PLAYING_SAMPLE = 2;
+var PLAYING_PATTERN = 3;
+var PLAYING_ROW = 4;
+
 var playing = 0;
 var channels = 2;	//stereo
 var sampleRate = 44100;
@@ -537,12 +556,12 @@ var outputAudio = new Audio();
 var currentWritePosition = 0;
 var lastSampleOffset = 0;
 function writeAudio() {
-  if (!playing) { return; }
+  if (playing == STOPPED) { return; }
   var currentSampleOffset = outputAudio.mozCurrentSampleOffset();
   var playHasStopped = currentSampleOffset == lastSampleOffset; // if audio stopped playing, just send data to trigger it to play again.
   while (currentSampleOffset + prebufferSize >= currentWritePosition || playHasStopped ) {
     // generate audio
-    var audioData = modPlayer.getSamples(bufferSize, playing != 2);
+    var audioData = modPlayer.getSamples(bufferSize, playing != PLAYING_SAMPLE);
     
     // write audio	
     var written = outputAudio.mozWriteAudio(audioData);
@@ -557,7 +576,7 @@ function writeAudio() {
 }
 
 function play() {
-  playing = 1;
+  playing = PLAYING;
 }
 
 // setup audio output
@@ -572,7 +591,7 @@ function init() {
 }
 
 function stop() {
-  playing = 0;
+  playing = STOPPED;
   for (var i = 0; i < editor.mod.channelCount; i++) {
     modPlayer.channels[i].playing = false;
   }
