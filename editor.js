@@ -45,7 +45,8 @@ function keyCodeToString(keyCode) {
     DOM_VK_F10: 'f10',
     DOM_VK_F11: 'f11',
     DOM_VK_F12: 'f12',
-    DOM_VK_SUBTRACT: '-'
+    DOM_VK_SUBTRACT: '-',
+    DOM_VK_SHIFT: 'shift'
   };
   var keyMapping = {};
   for (var prop in mapping) {
@@ -76,6 +77,14 @@ function EditorInput() {
   this.row = 0;
   this.pattern = 0;
   this.position = 0;
+  
+  this.selRowStart = 0;
+  this.selRowEnd = 0;
+  this.selColStart = 0;
+  this.selChannelStart = 0;
+  this.selColEnd = 0;
+  this.selChannelEnd = 0;
+  this.inSelection = false;
 }
 
 EditorInput.prototype = {
@@ -209,6 +218,8 @@ EditorInput.prototype = {
         } else {
           this.adjustColumn(-1);          
         }
+        this.updateSelection(ev);
+        this.updateUI();
         break;
 
       case 'right':
@@ -217,6 +228,8 @@ EditorInput.prototype = {
         } else {
           this.adjustColumn(1);          
         }
+        this.updateSelection(ev);
+        this.updateUI();
         break;
 
       case 'up':
@@ -225,6 +238,8 @@ EditorInput.prototype = {
         } else {
           this.adjustRow(-1);          
         }
+        this.updateSelection(ev);
+        this.updateUI();
         break;
 
       case 'down':
@@ -233,6 +248,8 @@ EditorInput.prototype = {
         } else {
           this.adjustRow(1);
         }
+        this.updateSelection(ev);
+        this.updateUI();
         break;
       
       case 'home':
@@ -240,6 +257,7 @@ EditorInput.prototype = {
           this.row = 0;
         this.column = 0;
         this.channel = 0;
+        this.updateSelection(ev);
         this.updateUI();
         break;
 
@@ -248,7 +266,12 @@ EditorInput.prototype = {
           this.row = 63;
         this.column = this.numColumns - 1;
         this.channel = this.numChannels - 1;
+        this.updateSelection(ev);
         this.updateUI();
+        break;
+      
+      case 'shift':
+        this.updateSelection(ev, true);
         break;
 
       case 'backspace':
@@ -262,16 +285,41 @@ EditorInput.prototype = {
         break;
 
       case 'delete':
-        var cols = [];
-        switch (this.column) {
-          case 0: cols.push("period"); break;
-          case 1: cols.push("sample"); break;
-          case 2: cols.push("volume"); break;
-          case 3: cols.push("effect"); /* fallthrough */
-          case 4: cols.push("effectParameter"); break;
+        var startCol, endCol, startChannel, endChannel, startRow, endRow;
+        if (this.inSelection) {
+          startCol = this.selColStart;
+          endCol = this.selColEnd;
+          startChannel = this.selChannelStart;
+          endChannel = this.selChannelEnd;
+          startRow = this.selRowStart;
+          endRow = this.selRowEnd;
+        } else {
+          startCol = this.column;
+          endCol = this.column;
+          startChannel = this.channel;
+          endChannel = this.channel;
+          startRow = this.row;
+          endRow = this.row;
         }
-        for (var i = 0; i < cols.length; i++)
-          this.mod.patterns[this.pattern][this.row][this.channel][cols[i]] = 0;
+
+        for (var j = startRow; j <= endRow; j++) {
+          for (var k = startChannel; k <= endChannel; k++) {
+            var start = k == startChannel ? startCol : 0;
+            var end = k == endChannel ? endCol : this.numColumns - 1;
+            for (var i = start; i <= end; i++) {
+              var cols = [];
+              switch (i) {
+                case 0: cols.push("period"); break;
+                case 1: cols.push("sample"); break;
+                case 2: cols.push("volume"); break;
+                case 3: cols.push("effect"); /* fallthrough */
+                case 4: cols.push("effectParameter"); break;
+              }
+              for (var l = 0; l < cols.length; l++)
+              this.mod.patterns[this.pattern][j][k][cols[l]] = 0;
+            }
+          }
+        }
         this.generateEditorUI();
         this.updateUI();
         break;
@@ -315,6 +363,77 @@ EditorInput.prototype = {
         return;
     }
     ev.preventDefault();
+  },
+  
+  updateSelection: function(ev, force) {
+    if (!ev.shiftKey && !force) {
+      this.inSelection = false;
+      return;
+    }
+
+    if (!this.inSelection) {
+      this.inSelection = true;
+      this.selRowStart = this.selRowEnd = this.row;
+      this.selColStart = this.selColEnd = this.column;
+      this.selChannelStart = this.selChannelEnd = this.channel;
+    } else {
+      var key = keyCodeToString(ev.which);
+      var vertChange = key == 'up' ? -1 : key == 'down' ? 1 : 0;
+      var horizChange = key == 'left' ? -1 : key == 'right' ? 1 : 0;
+
+      if (horizChange == -1) {
+        if (this.channel < this.selChannelStart) {
+          this.selChannelStart = this.channel;
+          this.selColStart = this.column;
+        } else if (this.channel == this.selChannelStart) {
+          if (this.column < this.selColStart) {
+            this.selColStart = this.column;
+          } else if (this.column >= this.selColStart) {
+            this.selColEnd = this.column;
+            this.selChannelEnd = this.channel;
+          }
+        } else {
+          this.selChannelEnd = this.channel;
+          this.selColEnd = this.column;
+        }
+
+      } else if (horizChange == 1) {
+        if (this.channel < this.selChannelEnd) {
+          this.selChannelStart = this.channel;
+          this.selColStart = this.column;
+        } else if (this.channel == this.selChannelStart) {
+          if (this.column < this.selColEnd) {
+            this.selColStart = this.column;
+            this.selChannelStart = this.channel;
+          } else if (this.column >= this.selColEnd) {
+            this.selColEnd = this.column;
+          }
+        } else {
+          if (this.channel == this.selChannelEnd) {
+            if (this.column < this.selColEnd) {
+              this.selChannelStart = this.channel;
+              this.selColStart = this.column;
+            }
+          } 
+          if (this.column >= this.selColEnd || this.channel >= this.selChannelEnd)
+            this.selColEnd = this.column;
+          
+          this.selChannelEnd = this.channel;
+        }
+      }
+
+      if (vertChange == -1) {
+        if (this.row < this.selRowStart)
+          this.selRowStart = this.row;
+        else
+          this.selRowEnd = this.row;
+      } else if (vertChange == 1) {
+        if (this.row < this.selRowEnd)
+          this.selRowStart = this.row;
+        else
+          this.selRowEnd = this.row;
+      }
+    }
   },
   
   generateStaticEditorUI: function() {
@@ -391,17 +510,33 @@ EditorInput.prototype = {
   updateUI: function() {
     $('.row-highlight').removeClass('row-highlight');
     $('.highlight').removeClass('highlight');
+    $('.selected').removeClass('selected');
     var channels = $('.channel');
     var idx = 0;
     var self = this;
     var highlightedCol;
+
     $(channels).each(function() {
       var row = $($(this).find('.row')[self.row]);
       row.addClass('row-highlight');
-      if (idx++ == self.channel) {
+      if (idx == self.channel) {
         highlightedCol = row.find('span')[self.column];
         $(highlightedCol).addClass('highlight');
       }
+
+      if (self.inSelection && idx >= self.selChannelStart &&
+          idx <= self.selChannelEnd) {
+        for (var k = self.selRowStart; k <= self.selRowEnd; k++) {
+          var aRow = $($(this).find('.row')[k]);
+          var start = self.selChannelStart == idx ? self.selColStart : 0;
+          var end = self.selChannelEnd == idx ? self.selColEnd : self.numColumns;
+          for (var j = start; j <= end; j++) {
+            $(aRow.find('span')[j]).addClass('selected');
+          }
+        }
+      }
+
+      idx++;
     });
     if (highlightedCol)
       highlightedCol.scrollIntoView(false);

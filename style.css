@@ -10,18 +10,26 @@ select {
     background-color: lightgrey;
 }
 
+.selected {
+    background-color: black;
+    color: white !important;
+}
+
 .editor {
     font-family: monospace;
     border: 1px solid;
     padding: 10px;
     float: left;
+    overflow: auto;
+    height: 95%;
+    width: 95%;
 }
 
 .editor span {
     margin-right: .5em;
 }
 
-.editor span :last-child {
+.editor div.row span :last-child {
     margin-left: -.5em;
 }
 
