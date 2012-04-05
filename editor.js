@@ -793,12 +793,12 @@ SampleEditor.prototype = {
     
     var metaSample = editor.mod.samples[this.currentInstrument];
     if (metaSample.repeatLength > 2) {
-      var x = Math.floor(scaledXpos(metaSample.repeatOffset));
+      var x = Math.floor(metaSample.repeatOffset / length * canvas.width);
       context.beginPath();
       context.strokeStyle = "#888888";
       context.moveTo(x, 0);
       context.lineTo(x, canvas.height);
-      x = Math.floor(scaledXpos(metaSample.repeatOffset + metaSample.repeatLength));
+      x = Math.floor((metaSample.repeatOffset + metaSample.repeatLength) / length * canvas.width);
       context.moveTo(x, 0);
       context.stroke(x, canvas.height);
     }
@@ -831,7 +831,7 @@ function openSampleEditor(sampleIndex) {
   canvas.width = "1500";
   canvas.height = "256";
   sampleEditor.drawWaveform(canvas);
-  sampler.style.display = "block";
+  sampler.style.display = "block";  
 }
 
 function closeSampleEditor() {
