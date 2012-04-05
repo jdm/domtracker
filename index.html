@@ -15,10 +15,17 @@
     <label for="instrument">Current: </label>
     <select id="instrument">
     </select>
+    <input type="button" value="edit" onclick="openSampleEditor(document.getElementById('instrument').selectedIndex)"/>
     <input type="number" value="1" id="notegap" size="1"/>
     <input type="button" value="Play (F6)" onclick="play()"/> <input type="button" value="Stop (F8)" onclick="stop()"/>
     <div id="channels">
     </div>
   </div>
+
+  <div id="sample-editor">
+    <canvas id="sample-display"></canvas>
+    <input type="button" value="Close" onclick="closeSampleEditor()"/>
+  </div>
+
 </body>
 </html>

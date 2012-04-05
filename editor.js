@@ -33,6 +33,7 @@ function keyCodeToString(keyCode) {
     DOM_VK_INSERT: 'insert',
     DOM_VK_DELETE: 'delete',
     DOM_VK_SPACE: 'space',
+    DOM_VK_ESCAPE: 'escape',
     DOM_VK_F1: 'f1',
     DOM_VK_F2: 'f2',
     DOM_VK_F3: 'f3',
@@ -50,7 +51,8 @@ function keyCodeToString(keyCode) {
   };
   var keyMapping = {};
   for (var prop in mapping) {
-    keyMapping[KeyEvent[prop]] = mapping[prop];
+    var keyEvent = 'KeyEvent' in window ? KeyEvent : KeyboardEvent;
+    keyMapping[keyEvent[prop]] = mapping[prop];
   }
   return keyMapping[keyCode];
 }
@@ -669,8 +671,105 @@ function padNumber(num, base) {
   return (num < base ? "0" : "") + num.toString(base).toUpperCase();
 }
 
+function SampleEditor() {
+}
+
+SampleEditor.prototype = {
+  current: 0,
+  
+  handleKeypress: function(ev) {
+    console.log("wooooooooooo");
+    if (ev.altKey || ev.target != document.body)
+      return;
+
+    var keyCode = ev.keyCode || ev.which;
+    var key = keyCodeToString(keyCode);
+    //console.log(keyCode);
+    if (!ev.metaKey && (isAlphaNum(keyCode) ||
+         ['[', ']', ';', '\'', ',', '.', '/', '\\'].indexOf(key) != -1)) {
+      this.previewSample(keyCode);
+      ev.preventDefault();
+      return;
+    }
+
+    switch (key) {
+      case 'escape':
+        closeSampleEditor();
+        break;
+
+      default:
+        return;
+    }
+    ev.preventDefault();
+  },
+  
+  previewSample: function(keyCode) {
+  }
+};
+
+function openSampleEditor(sampleIndex) {
+  var sampler = document.getElementById('sample-editor');
+  
+  focusedInputHandler.push(sampleEditor);
+
+  var sample = editor.mod.sampleData[sampleIndex];
+  var length = sample.length;
+  
+  var canvas = document.getElementById('sample-display');;
+  var context = canvas.getContext("2d");
+  canvas.width = "1500";
+  canvas.height = "256";
+  console.log(canvas.width);
+  console.log(canvas.height);
+  initSampleEditor();
+  sampler.style.display = "block";
+  canvas.focus();
+
+  var yOffset = Math.floor(canvas.height / 2);
+  var lasty = -(sample[0] - 128);
+
+  function sampleData(index) {
+    return ((sample[index] + 128) & 0xFF) - 128;
+  }
+
+  context.beginPath();
+  context.strokeStyle = "#FF0000";
+  for (var x = 0; x < canvas.width; x++) {
+    var findex = x * length / canvas.width;
+    var index = Math.floor(findex);
+    var index2 = index + 1;
+    if (index2 >= sample.length)
+      index2 = sample.length - 1;
+    var t = findex - index;
+    var y1 = -sampleData(index);
+    var y2 = -sampleData(index2);
+    var y = Math.floor((1.0 - t) * y1 + t * y2);
+    context.lineTo(x, y + yOffset);
+    lasty = y;
+  }
+  context.stroke();
+}
+
+function closeSampleEditor() {
+  document.getElementById('sample-editor').style.display = "none";
+  focusedInputHandler.pop();
+}
+
+function initSampleEditor() {
+  var sampleCanvas = document.getElementById('sample-display');;
+  var context = sampleCanvas.getContext("2d");
+  context.beginPath();
+  context.rect(0, 0, sampleCanvas.width, sampleCanvas.height);
+  context.fillStyle = "#000000";
+  context.fill();
+  document.getElementById('sample-editor').style.display = "none";
+  //openSampleEditor(0);
+}
+
 var modPlayer;
 var editor;
+var sampleEditor;
+var focusedInputHandler = [];
 
 var STOPPED = 0;
 var PLAYING = 1;
@@ -779,11 +878,18 @@ function loadRemote(path) {
 
 $(document).ready(function() {
   editor = new EditorInput();
-  $(window).keydown(editor.handleKeypress.bind(editor));
+  sampleEditor = new SampleEditor();
+  focusedInputHandler.push(editor);
+
+  $(window).keydown(function(ev) {
+    focusedInputHandler[focusedInputHandler.length - 1].handleKeypress(ev);
+  });
+
   editor.generateEditorUI();
   editor.updateUI();
   init();
   //dynamicAudio = new DynamicAudio({'swf': 'dynamicaudio.swf'});  
   loadRemote('sundance.mod');
+  initSampleEditor();
 });
 

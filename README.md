@@ -18,6 +18,9 @@ sundance.mod by Purple Motion / Future Crew.
 - downloading module files
 - loading module files (remote/local)
 - optimize pattern redraw and update
+- optimize selection redraw
+- copy/cut/paste
+- undo/redo
 - informative display for effect/sample name under cursor
 - single row stepping
 - sample editor (oh nooooooo)
