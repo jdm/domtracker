@@ -1,5 +1,7 @@
+<!DOCTYPE html>
 <html>
 <head>
+  <meta charset="utf-8">
   <link rel="stylesheet" type="text/css" href="style.css">
   <script type="text/javascript" src="jquery-1.7.1.min.js"></script>
   <script type="text/javascript" src="jsmodplayer/modfile.js"></script>
@@ -11,6 +13,14 @@
   <div id="editor" class="editor">
     <label for="localfile">Load MOD:</label> <input type="file" id="localfile" onchange="loadLocal(this.files[0])" />
     <br/>
+    <hr/>
+    <div id="pattern-list">
+      <div>&lt;</div>
+      <div>1</div>
+      <div class="pattern-selected">2</div>
+      <div>3</div>
+      <div>&gt;</div>
+    </div>
     <hr/>
     <label for="instrument">Current: </label>
     <select id="instrument">

@@ -148,6 +148,11 @@ EditorInput.prototype = {
       return false;
     }
     this.pattern = this.mod.positions[this.position];
+    if (this.position < this.positionOffset)
+      this.positionOffset--;
+    else if (this.position == this.positionOffset + this.displayedPositions)
+      this.positionOffset++;
+    this.generateStaticEditorUI();
     this.generateEditorUI();
     this.updateUI();
     return true;
@@ -444,6 +449,9 @@ EditorInput.prototype = {
     }
   },
   
+  positionOffset: 0,
+  displayedPositions: 20,
+  
   generateStaticEditorUI: function() {
     var instr = document.getElementById('instrument');
     while (instr.childNodes.length > 0) {
@@ -454,6 +462,52 @@ EditorInput.prototype = {
       elem.textContent = (i + 1) + ". " + this.mod.samples[i].name;
       instr.appendChild(elem);
     }
+
+    var self = this;
+    
+    var patterns = document.getElementById('pattern-list');
+    while (patterns.childNodes.length > 0) {
+      patterns.removeChild(patterns.firstChild);
+    }
+    var elem = document.createElement('div');
+    elem.textContent = "<";
+    elem.setAttribute('class', 'position-button');
+    $(elem).mousedown(function(ev) {
+      if (self.positionOffset == 0)
+        return;
+      self.positionOffset--;
+      self.generateStaticEditorUI();
+    });
+    patterns.appendChild(elem);
+    for (var i = 0; i < this.displayedPositions; i++) {
+      elem = document.createElement('div');
+      if (this.positionOffset + i < this.mod.positionCount) {
+        elem.textContent = this.mod.positions[this.positionOffset + i];
+        $(elem).mousedown((function(val) {
+            return function(ev) {
+              self.position = self.positionOffset + val;
+              self.pattern = self.mod.positions[self.position];
+              self.generateStaticEditorUI();
+              self.generateEditorUI();
+              self.updateUI();
+            };})(i));
+      } else {
+        elem.textContent = "-";
+      }
+      if (this.position == this.positionOffset + i)
+        elem.setAttribute('class', 'pattern-selected');
+      patterns.appendChild(elem);
+    }
+    elem = document.createElement('div');
+    elem.textContent = ">";
+    elem.setAttribute('class', 'position-button');
+    $(elem).mousedown(function(ev) {
+      if (self.positionOffset + self.displayedPositions == self.mod.positionCount)
+        return;
+      self.positionOffset++;
+      self.generateStaticEditorUI();
+    });
+    patterns.appendChild(elem);
   },
   
   generateEditorUI: function() {

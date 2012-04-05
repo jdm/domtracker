@@ -61,6 +61,46 @@ select {
     color: black;
 }
 
+#pattern-list {
+    height: 3em;
+    display: table;
+}
+
+#pattern-list div {
+    border: 1px solid black;
+    border-left: 0px;
+    font-family: sans-serif;
+    margin-right: 0px;
+    width: 3em;
+    display: table-cell;
+    vertical-align: middle;
+    text-align: center;
+}
+
+#pattern-list :hover {
+    background: lightgrey;
+    cursor: pointer;
+}
+
+#pattern-list :nth-child(2) {
+    border-left: 1px solid black;
+}
+
+.pattern-selected {
+    background: #000066 !important;
+    color: white;
+}
+
+.position-button {
+    background: lightgrey;
+    padding: 2px;
+    border-bottom: 2px black solid !important;
+    border-right: 2px black solid !important;
+    border-top: 2px grey solid !important;
+    border-left: 2px grey solid !important;
+    border-radius: 5px;
+}
+
 #sample-editor {
     border: 1px solid grey;
     background: white;

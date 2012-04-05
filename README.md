@@ -25,3 +25,4 @@ sundance.mod by Purple Motion / Future Crew.
 - single row stepping
 - sample editor (oh nooooooo)
 - more module file types? (oh noooooooooooooooooooooo)
+- webkit support
