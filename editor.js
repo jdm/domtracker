@@ -360,6 +360,12 @@ EditorInput.prototype = {
         modPlayer.loadRow(row);
         playing = PLAYING_ROW;
         break;
+      
+      case 'e':
+        if (!ev.metaKey)
+          return;
+        openSampleEditor(document.getElementById('instrument').selectedIndex);
+        break;
 
       default:
         return;
@@ -566,7 +572,7 @@ EditorInput.prototype = {
     var oldPattern = this.pattern;
     this.pattern = this.mod.positions[this.position];
     if (playing == PLAYING_ROW && player.currentRow != this.row)
-      playing = 2;
+      playing = PLAYING_SAMPLE;
     this.row = player.currentRow;
     if (oldPattern != this.pattern)
       this.generateEditorUI();
@@ -675,11 +681,8 @@ function SampleEditor() {
 }
 
 SampleEditor.prototype = {
-  current: 0,
-  
   handleKeypress: function(ev) {
-    console.log("wooooooooooo");
-    if (ev.altKey || ev.target != document.body)
+    if (ev.altKey || ev.ctrlKey || ev.metaKey || ev.target != document.body)
       return;
 
     var keyCode = ev.keyCode || ev.which;
@@ -694,7 +697,28 @@ SampleEditor.prototype = {
 
     switch (key) {
       case 'escape':
+        this.stopPreview();
         closeSampleEditor();
+        break;
+      
+      case 'f8':
+        this.stopPreview();
+        break;
+      
+      case 'pagedown':
+        if (this.currentInstrument == editor.mod.sampleCount - 1)
+          break;
+        this.currentInstrument++;
+        this.drawWaveform(document.getElementById('sample-display'));
+        document.getElementById('instrument').selectedIndex = this.currentInstrument;
+        break;
+      
+      case 'pageup':
+        if (this.currentInstrument == 0)
+          break;
+        this.currentInstrument--;
+        this.drawWaveform(document.getElementById('sample-display'));
+        document.getElementById('instrument').selectedIndex = this.currentInstrument;
         break;
 
       default:
@@ -703,67 +727,116 @@ SampleEditor.prototype = {
     ev.preventDefault();
   },
   
+  stopPreview: function() {
+    if (this.fakeChannel)
+      this.fakeChannel.playing = false;
+    playing = STOPPED;
+  },
+  
   previewSample: function(keyCode) {
-  }
+    this.fakeChannel = modPlayer.createChannel();
+    var note = {
+      period: periodFromKey(keyCodeToString(keyCode)),
+      sample: this.currentInstrument + 1
+    };
+    modPlayer.prepareChannel(this.fakeChannel, note);
+    playing = PLAYING_PREVIEW;
+    this.lastPlayPosition = 0;
+    var self = this;
+    var callback = function(timestamp) {
+      if (self.fakeChannel.samplePosition != self.lastPlayPosition) {
+        self.drawWaveform(document.getElementById('sample-display'), self.fakeChannel.playing);
+        this.lastPlayPosition = self.fakeChannel.samplePosition;
+      }
+      if (self.fakeChannel.playing)
+        requestAnimationFrame(callback);
+    };
+    requestAnimationFrame(callback);
+  },
+  
+  drawWaveform: function(canvas, playing) {
+    var sample = editor.mod.sampleData[this.currentInstrument];
+    var yOffset = Math.floor(canvas.height / 2);
+    var lasty = -(sample[0] - 128);
+    var length = sample.length;
+
+    function sampleData(index) {
+      return ((sample[index] + 128) & 0xFF) - 128;
+    }
+    
+    function scaledXpos(x) {
+      return x * length / canvas.width;
+    }
+
+    var context = canvas.getContext("2d");
+    context.beginPath();
+    context.rect(0, 0, canvas.width, canvas.height);
+    context.fillStyle = "#000000";
+    context.fill();
+
+    context.beginPath();
+    context.strokeStyle = "#FF0000";
+    for (var x = 0; x < canvas.width; x++) {
+      var findex = scaledXpos(x);
+      var index = Math.floor(findex);
+      var index2 = index + 1;
+      if (index2 >= sample.length)
+        index2 = sample.length - 1;
+      var t = findex - index;
+      var y1 = -sampleData(index);
+      var y2 = -sampleData(index2);
+      var y = Math.floor((1.0 - t) * y1 + t * y2);
+      context.lineTo(x, y + yOffset);
+      lasty = y;
+    }
+    context.stroke();
+    
+    var metaSample = editor.mod.samples[this.currentInstrument];
+    if (metaSample.repeatLength > 2) {
+      var x = Math.floor(scaledXpos(metaSample.repeatOffset));
+      context.beginPath();
+      context.strokeStyle = "#888888";
+      context.moveTo(x, 0);
+      context.lineTo(x, canvas.height);
+      x = Math.floor(scaledXpos(metaSample.repeatOffset + metaSample.repeatLength));
+      context.moveTo(x, 0);
+      context.stroke(x, canvas.height);
+    }
+    
+    if (playing) {
+      context.beginPath();
+      context.strokeStyle = "#FFFFFF";
+      var x = Math.floor(this.fakeChannel.samplePosition / length * canvas.width);
+      context.moveTo(x, 0);
+      context.lineTo(x, canvas.height);
+      context.stroke();
+    }
+  },
+  
+  fakeChannel: null,
+  currentInstrument: 0,
+  lastPlayPosition: 0
 };
+
+var requestAnimationFrame = window.requestAnimationFrame || window.mozRequestAnimationFrame ||
+                            window.webkitRequestAnimationFrame || window.msRequestAnimationFrame;
 
 function openSampleEditor(sampleIndex) {
   var sampler = document.getElementById('sample-editor');
+  sampleEditor.currentInstrument = sampleIndex;
   
   focusedInputHandler.push(sampleEditor);
 
-  var sample = editor.mod.sampleData[sampleIndex];
-  var length = sample.length;
-  
   var canvas = document.getElementById('sample-display');;
-  var context = canvas.getContext("2d");
   canvas.width = "1500";
   canvas.height = "256";
-  console.log(canvas.width);
-  console.log(canvas.height);
-  initSampleEditor();
+  sampleEditor.drawWaveform(canvas);
   sampler.style.display = "block";
-  canvas.focus();
-
-  var yOffset = Math.floor(canvas.height / 2);
-  var lasty = -(sample[0] - 128);
-
-  function sampleData(index) {
-    return ((sample[index] + 128) & 0xFF) - 128;
-  }
-
-  context.beginPath();
-  context.strokeStyle = "#FF0000";
-  for (var x = 0; x < canvas.width; x++) {
-    var findex = x * length / canvas.width;
-    var index = Math.floor(findex);
-    var index2 = index + 1;
-    if (index2 >= sample.length)
-      index2 = sample.length - 1;
-    var t = findex - index;
-    var y1 = -sampleData(index);
-    var y2 = -sampleData(index2);
-    var y = Math.floor((1.0 - t) * y1 + t * y2);
-    context.lineTo(x, y + yOffset);
-    lasty = y;
-  }
-  context.stroke();
 }
 
 function closeSampleEditor() {
   document.getElementById('sample-editor').style.display = "none";
   focusedInputHandler.pop();
-}
-
-function initSampleEditor() {
-  var sampleCanvas = document.getElementById('sample-display');;
-  var context = sampleCanvas.getContext("2d");
-  context.beginPath();
-  context.rect(0, 0, sampleCanvas.width, sampleCanvas.height);
-  context.fillStyle = "#000000";
-  context.fill();
-  document.getElementById('sample-editor').style.display = "none";
-  //openSampleEditor(0);
 }
 
 var modPlayer;
@@ -776,6 +849,7 @@ var PLAYING = 1;
 var PLAYING_SAMPLE = 2;
 var PLAYING_PATTERN = 3;
 var PLAYING_ROW = 4;
+var PLAYING_PREVIEW = 5;
 
 var playing = 0;
 var channels = 2;	//stereo
@@ -790,14 +864,18 @@ var outputAudio = new Audio();
 var currentWritePosition = 0;
 var lastSampleOffset = 0;
 function writeAudio() {
-  if (playing == STOPPED) { return; }
+  if (playing == STOPPED)
+    return;
+
   var currentSampleOffset = outputAudio.mozCurrentSampleOffset();
   var playHasStopped = currentSampleOffset == lastSampleOffset; // if audio stopped playing, just send data to trigger it to play again.
   while (currentSampleOffset + prebufferSize >= currentWritePosition || playHasStopped ) {
     // generate audio
-    var audioData = modPlayer.getSamples(bufferSize, playing != PLAYING_SAMPLE);
+    var audioData = playing == PLAYING_PREVIEW ?
+      modPlayer.getSamplesForChannel(bufferSize, sampleEditor.fakeChannel) :
+      modPlayer.getSamples(bufferSize, playing != PLAYING_SAMPLE);
     
-    // write audio	
+    // write audio
     var written = outputAudio.mozWriteAudio(audioData);
     currentWritePosition += written;	//portionSize;
     currentSampleOffset = outputAudio.mozCurrentSampleOffset();
@@ -829,6 +907,8 @@ function stop() {
   for (var i = 0; i < editor.mod.channelCount; i++) {
     modPlayer.channels[i].playing = false;
   }
+  if (sampleEditor.fakeChannel)
+    sampleEditor.fakeChannel.playing = false;
 }
 
 /* load from harddrive using HTML5 File API */
@@ -890,6 +970,5 @@ $(document).ready(function() {
   init();
   //dynamicAudio = new DynamicAudio({'swf': 'dynamicaudio.swf'});  
   loadRemote('sundance.mod');
-  initSampleEditor();
 });
 

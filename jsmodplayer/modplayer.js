@@ -132,31 +132,34 @@ function ModPlayer(mod, rate) {
 	this.delayRows = false; //EEx pattern delay.
 	
 	this.channels = [];
-	for (var chan = 0; chan < mod.channelCount; chan++) {
-		this.channels[chan] = {
-			playing: false,
-			sample: mod.samples[0],
-			finetune: 0,
-			volume: 0,
-			pan: 0x7F,	//unimplemented
-			volumeDelta: 0,
-			periodDelta: 0,
-			fineVolumeDelta: 0,
-			finePeriodDelta: 0,
-			tonePortaTarget: 0, //target for 3xx, 5xy as period value
-			tonePortaDelta: 0,
-			tonePortaVolStep: 0, //remember pitch slide step for when 5xx is used
-			tonePortaActive: false,
-			cut: false,			//tick to cut at, or false if no cut
-			delay: false,		//tick to delay note until, or false if no delay
-			arpeggioActive: false
-		};
-	}
+	for (var chan = 0; chan < mod.channelCount; chan++)
+		this.channels[chan] = this.createChannel();
   
 	this.loadPosition(0);	
 }
 
 ModPlayer.prototype = {
+  createChannel: function() {
+    return {
+      playing: false,
+      sample: this.mod.samples[0],
+      finetune: 0,
+      volume: 0,
+      pan: 0x7F,	//unimplemented
+      volumeDelta: 0,
+      periodDelta: 0,
+      fineVolumeDelta: 0,
+      finePeriodDelta: 0,
+      tonePortaTarget: 0, //target for 3xx, 5xy as period value
+      tonePortaDelta: 0,
+      tonePortaVolStep: 0, //remember pitch slide step for when 5xx is used
+      tonePortaActive: false,
+      cut: false,			//tick to cut at, or false if no cut
+      delay: false,		//tick to delay note until, or false if no delay
+      arpeggioActive: false
+    };
+  },
+
   prepareChannel: function(channel, note) {
     channel.playing = true;
     channel.samplePosition = 0;
@@ -455,6 +458,40 @@ ModPlayer.prototype = {
     }
   },
   
+  getOutputLevelsForChannel: function(channel, chan) {
+    var leftOutputLevel = 0;
+    var rightOutputLevel = 0;
+    if (!channel.playing)
+      return [leftOutputLevel, rightOutputLevel];
+
+    channel.ticksSinceStartOfSample += this.ticksPerOutputSample;
+    while (channel.ticksSinceStartOfSample >= channel.ticksPerSample) {
+      channel.samplePosition++;
+      if (channel.sample.repeatLength > 2 && channel.samplePosition >= channel.sample.repeatOffset + channel.sample.repeatLength) {
+	channel.samplePosition = channel.sample.repeatOffset;
+      } else if (channel.samplePosition >= channel.sample.length) {
+	channel.playing = false;
+	break;
+      } else 
+	channel.ticksSinceStartOfSample -= channel.ticksPerSample;
+    }
+    if (!channel.playing)
+      return [leftOutputLevel, rightOutputLevel];
+      
+    var rawVol = this.mod.sampleData[channel.sampleNum][channel.samplePosition];
+    var vol = (((rawVol + 128) & 0xff) - 128) * channel.volume; /* range (-128*64)..(127*64) */
+    if (chan & 3 == 0 || chan & 3 == 3) { /* hard panning(?): left, right, right, left */
+      leftOutputLevel += (vol + channel.pan) * 3;
+      rightOutputLevel += (vol + 0xFF - channel.pan);
+    } else {
+      leftOutputLevel += (vol + 0xFF - channel.pan);
+      rightOutputLevel += (vol + channel.pan) * 3;
+    }
+    /* range of outputlevels is 128*64*2*channelCount */
+    /* (well, it could be more for odd channel counts) */
+    return [leftOutputLevel, rightOutputLevel];
+  },
+  
   getSamples: function(sampleCount, advanceFrame) {
     var samples = [];
     var i = 0;
@@ -469,34 +506,9 @@ ModPlayer.prototype = {
       var leftOutputLevel = 0;
       var rightOutputLevel = 0;
       for (var chan = 0; chan < this.mod.channelCount; chan++) {
-	var channel = this.channels[chan];
-	if (channel.playing) {
-	  channel.ticksSinceStartOfSample += this.ticksPerOutputSample;
-	  while (channel.ticksSinceStartOfSample >= channel.ticksPerSample) {
-	    channel.samplePosition++;
-	    if (channel.sample.repeatLength > 2 && channel.samplePosition >= channel.sample.repeatOffset + channel.sample.repeatLength) {
-	      channel.samplePosition = channel.sample.repeatOffset;
-	    } else if (channel.samplePosition >= channel.sample.length) {
-	      channel.playing = false;
-	      break;
-	    } else 
-	      channel.ticksSinceStartOfSample -= channel.ticksPerSample;
-	  }
-	  if (channel.playing) {
-	    
-	    var rawVol = this.mod.sampleData[channel.sampleNum][channel.samplePosition];
-	    var vol = (((rawVol + 128) & 0xff) - 128) * channel.volume; /* range (-128*64)..(127*64) */
-	    if (chan & 3 == 0 || chan & 3 == 3) { /* hard panning(?): left, right, right, left */
-	      leftOutputLevel += (vol + channel.pan) * 3;
-	      rightOutputLevel += (vol + 0xFF - channel.pan);
-	    } else {
-	      leftOutputLevel += (vol + 0xFF - channel.pan);
-	      rightOutputLevel += (vol + channel.pan) * 3;
-	    }
-	    /* range of outputlevels is 128*64*2*channelCount */
-	    /* (well, it could be more for odd channel counts) */
-	  }
-	}
+        var outputs = this.getOutputLevelsForChannel(this.channels[chan], chan);
+        leftOutputLevel += outputs[0];
+        rightOutputLevel += outputs[1];
       }
       
       samples[i] = leftOutputLevel / (128 * 128 * this.mod.channelCount);
@@ -505,6 +517,18 @@ ModPlayer.prototype = {
     }
     
     return samples;    
+  },
+  
+  getSamplesForChannel: function(sampleCount, channel) {
+    var samples = [];
+    var i = 0;
+    while (i < sampleCount) {
+      var outputs = this.getOutputLevelsForChannel(channel, 0);
+      samples[i] = outputs[0] / (128 * 128 * 1);
+      samples[i+1] = outputs[1] / (128 * 128 * 1);
+      i += 2;
+    }
+    return samples;
   },
   
   setBpm: function(bpm) {
