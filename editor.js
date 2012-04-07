@@ -631,7 +631,6 @@ EditorInput.prototype = {
   // Used to disable any delayed UI updates that might occur
   // and overwrite an immediate UI update that has taken place
   inhibitFurtherUpdates: function() {
-    console.log(this.pendingUpdates);
     if (this.pendingUpdates > 0)
       this.inhibitUpdates = true;
   },
