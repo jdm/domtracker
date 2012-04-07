@@ -23,6 +23,7 @@ ModulePlayer.prototype = {
     if (this.playing == PLAYING_ROW) {
       this.playing = PLAYING_SAMPLE;
       editor.adjustRow(1);
+      editor.inhibitFurtherUpdates();
       return false;
     }
 

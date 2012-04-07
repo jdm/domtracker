@@ -627,6 +627,17 @@ EditorInput.prototype = {
     this.generateEditorUI();
     this.updateUI();
   },
+
+  // Used to disable any delayed UI updates that might occur
+  // and overwrite an immediate UI update that has taken place
+  inhibitFurtherUpdates: function() {
+    console.log(this.pendingUpdates);
+    if (this.pendingUpdates > 0)
+      this.inhibitUpdates = true;
+  },
+  
+  pendingUpdates: 0,
+  inhibitUpdates: false,
   
   triggerUpdate: function(currentPlayer) {
     // We can ignore updates when we're previewing sample sounds
@@ -643,13 +654,25 @@ EditorInput.prototype = {
       currentPlayer.loadPosition(this.playingPosition);
     this.playingPosition = currentPlayer.currentPosition;
     
+    if (this.inhibitUpdates)
+      return;
+    
     var self = this;
     var player = {
       currentPosition: currentPlayer.currentPosition,
       currentRow: currentPlayer.currentRow
     };
 
+    this.pendingUpdates++;
     setTimeout(function() {
+      self.pendingUpdates--;
+      var inhibited = self.inhibitUpdates;
+      if (!self.pendingUpdates) {
+        self.inhibitUpdates = false;
+      }
+      if (inhibited)
+        return;
+
       var lastPosition = self.position;
       self.position = player.currentPosition;
       if (lastPosition != self.position)
@@ -657,10 +680,7 @@ EditorInput.prototype = {
       var oldPattern = self.pattern;
       self.pattern = self.mod.positions[self.position];
                  
-      // Heuristic: if the UI thinks we're farther ahead of where we think we are
-      // at this point, don't overwrite the UI with the older value.
-      if (self.row < player.current || self.pattern != oldPattern)
-        self.row = player.currentRow;
+      self.row = player.currentRow;
 
       if (oldPattern != self.pattern)
         self.generateEditorUI();

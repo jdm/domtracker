@@ -29,11 +29,9 @@ sundance.mod by Purple Motion / Future Crew.
 - informative display for effect/sample name under cursor
 - more module file types? (oh noooooooooooooooooooooo)
 - jsmodplayer improvements (1993.MOD shows significant problems)
-- webkit support
 
 **sample editor**
 
-- single row stepping
 - sample select/cut/copy/paste
 - importing samples (local/remote)
 - saving samples
