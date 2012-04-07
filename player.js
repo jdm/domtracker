@@ -18,7 +18,7 @@ ModulePlayer.prototype = {
     var self = this;
 
     this.refill = function(sampleBuffer) {
-      console.log("delta = " + (Date.now() - self.lastRebuffer) + ", asked for " + sampleBuffer.length);
+      //console.log("delta = " + (Date.now() - self.lastRebuffer) + ", asked for " + sampleBuffer.length);
       self.lastRebuffer = Date.now();
       if (self.playing == STOPPED)
         return;
