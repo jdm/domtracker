@@ -180,7 +180,7 @@ EditorInput.prototype = {
         this.adjustRow(parseInt(document.getElementById('notegap').value));
         modPlayer.prepareChannel(modPlayer.channels[this.channel],
                                  {'period': row.period, 'sample': row.sample});
-        playing = PLAYING_SAMPLE;
+        playerEngine.playing = PLAYING_SAMPLE;
         break;
       case 1:
         return;
@@ -340,15 +340,13 @@ EditorInput.prototype = {
         break;
       
       case 'f6':
-        stop();
-        modPlayer.loadPosition(0);
-        play();
+        playFromStart();
         break;
       
       case 'f7':
         stop();
         modPlayer.loadPosition(this.position);
-        playing = PLAYING_PATTERN;
+        playerEngine.playing = PLAYING_PATTERN;
         break;
       
       case 'f8':
@@ -363,7 +361,7 @@ EditorInput.prototype = {
         if (modPlayer.currentPosition != this.position)
           modPlayer.loadPosition(this.position);
         modPlayer.loadRow(row);
-        playing = PLAYING_ROW;
+        playerEngine.playing = PLAYING_ROW;
         break;
       
       case 'e':
@@ -526,7 +524,16 @@ EditorInput.prototype = {
 
       var header = document.createElement('div');
       $(header).addClass('header');
+      if (modPlayer.channels[i].muted)
+        $(header).addClass('muted');
       header.textContent = "Channel " + (i + 1);
+      (function(val) {$(header).mousedown(function(ev) {
+        modPlayer.channels[val].muted ^= 1;
+        if (modPlayer.channels[val].muted)
+          $(this).addClass('muted');
+        else
+          $(this).removeClass('muted');
+      });})(i);
       channel.appendChild(header);
       
       for (var j = 0; j < 64; j++) {
@@ -615,22 +622,35 @@ EditorInput.prototype = {
     this.updateUI();
   },
   
-  triggerUpdate: function(player) {
+  triggerUpdate: function(currentPlayer) {
     if (!this.mod)
       return;
-    if (playing == PLAYING_PATTERN && this.position != player.currentPosition) {
-      player.loadPosition(this.position);
-      return;
-    }
-    this.position = player.currentPosition;
-    var oldPattern = this.pattern;
-    this.pattern = this.mod.positions[this.position];
-    if (playing == PLAYING_ROW && player.currentRow != this.row)
-      playing = PLAYING_SAMPLE;
-    this.row = player.currentRow;
-    if (oldPattern != this.pattern)
-      this.generateEditorUI();
-    this.updateUI();
+
+    var self = this;
+    var player = {
+      currentPosition: currentPlayer.currentPosition,
+      currentRow: currentPlayer.currentRow
+    };
+
+    setTimeout(function() {
+      if (playerEngine.playing == PLAYING_PATTERN && self.position != player.currentPosition) {
+        player.loadPosition(self.position); //XXX
+        return;
+      }
+
+      var lastPosition = self.position;
+      self.position = player.currentPosition;
+      if (lastPosition != self.position)
+        self.generateStaticEditorUI(); //XXX won't keep current scrolled in view
+      var oldPattern = self.pattern;
+      self.pattern = self.mod.positions[self.position];
+      if (playerEngine.playing == PLAYING_ROW && player.currentRow != self.row)
+        playerEngine.playing = PLAYING_SAMPLE;
+      self.row = player.currentRow;
+      if (oldPattern != self.pattern)
+        self.generateEditorUI();
+      self.updateUI();
+    }, audioSyncDelay);
   },
   
   mod: null
@@ -784,7 +804,7 @@ SampleEditor.prototype = {
   stopPreview: function() {
     if (this.fakeChannel)
       this.fakeChannel.playing = false;
-    playing = STOPPED;
+    playerEngine.playing = STOPPED;
   },
   
   previewSample: function(keyCode) {
@@ -794,7 +814,7 @@ SampleEditor.prototype = {
       sample: this.currentInstrument + 1
     };
     modPlayer.prepareChannel(this.fakeChannel, note);
-    playing = PLAYING_PREVIEW;
+    playerEngine.playing = PLAYING_PREVIEW;
     this.lastPlayPosition = 0;
     var self = this;
     var callback = function(timestamp) {
@@ -806,6 +826,10 @@ SampleEditor.prototype = {
         requestAnimationFrame(callback);
     };
     requestAnimationFrame(callback);
+  },
+  
+  getPreviewSource: function() {
+    return this.fakeChannel;
   },
   
   drawWaveform: function(canvas, playing) {
@@ -857,7 +881,7 @@ SampleEditor.prototype = {
       context.stroke(x, canvas.height);
     }
     
-    if (playing) {
+    if (playerEngine.playing) {
       context.beginPath();
       context.strokeStyle = "#FFFFFF";
       var x = Math.floor(this.fakeChannel.samplePosition / length * canvas.width);
@@ -896,6 +920,7 @@ function closeSampleEditor() {
 var modPlayer;
 var editor;
 var sampleEditor;
+var playerEngine;
 var focusedInputHandler = [];
 
 var STOPPED = 0;
@@ -905,59 +930,19 @@ var PLAYING_PATTERN = 3;
 var PLAYING_ROW = 4;
 var PLAYING_PREVIEW = 5;
 
-var playing = 0;
-var channels = 2;	//stereo
-var sampleRate = 44100;
-var bufferSize = 2048 * channels; 
-var prebufferSize = 12 * channels * 1024; // defines the latency
-
-var outputAudio = new Audio();
-
-//writeAudio thanks to: http://www.toverlamp.org/static/HTML5-Guitar-Tab-Player/
-// function that describes the audio chain
-var currentWritePosition = 0;
-var lastSampleOffset = 0;
-function writeAudio() {
-  if (playing == STOPPED)
-    return;
-
-  var currentSampleOffset = outputAudio.mozCurrentSampleOffset();
-  var playHasStopped = currentSampleOffset == lastSampleOffset; // if audio stopped playing, just send data to trigger it to play again.
-  while (currentSampleOffset + prebufferSize >= currentWritePosition || playHasStopped ) {
-    // generate audio
-    var audioData = playing == PLAYING_PREVIEW ?
-      modPlayer.getSamplesForChannel(bufferSize, sampleEditor.fakeChannel) :
-      modPlayer.getSamples(bufferSize, playing != PLAYING_SAMPLE);
-    
-    // write audio
-    var written = outputAudio.mozWriteAudio(audioData);
-    currentWritePosition += written;	//portionSize;
-    currentSampleOffset = outputAudio.mozCurrentSampleOffset();
-    playHasStopped = 0;
-    if (written < audioData.length) { // firefox buffer is full, stop writing
-      return;
-    }
-  }
-  lastSampleOffset = outputAudio.mozCurrentSampleOffset();
-}
-
 function play() {
-  playing = PLAYING;
+  playerEngine.playing = PLAYING;
+  playerEngine.reinitDevice();
 }
 
-// setup audio output
-function init() {
-  //status = document.getElementById("status");
-  if(outputAudio.mozSetup) {
-    outputAudio.mozSetup(2, sampleRate);
-    writeAudio(); // initial write
-    var writeInterval = Math.floor(1000 * bufferSize / sampleRate);
-    setInterval(writeAudio, writeInterval);
-  }
+function playFromStart() {
+  stop();
+  modPlayer.loadPosition(0);
+  play();
 }
 
 function stop() {
-  playing = STOPPED;
+  playerEngine.playing = STOPPED;
   for (var i = 0; i < editor.mod.channelCount; i++) {
     modPlayer.channels[i].playing = false;
   }
@@ -976,6 +961,7 @@ function loadLocal(file) {
 		       var modFile = new ModFile(theFile);
                        editor.loadMOD(modFile);
 		       modPlayer = new ModPlayer(modFile, 44100);
+                       playerEngine.createDevice(modPlayer);
 		       //play();
 		       //document.getElementById('status').innerText = '';
 		     };
@@ -1002,6 +988,7 @@ function loadRemote(path) {
       
       var modFile = new ModFile(binString);
       modPlayer = new ModPlayer(modFile, 44100);
+      playerEngine.createDevice(modPlayer);
       editor.loadMOD(modFile);
       //play();
       //document.getElementById('status').innerText = '';
@@ -1010,10 +997,16 @@ function loadRemote(path) {
   fetch.send();
 }
 
+var audioSyncDelay = 0;
+
 $(document).ready(function() {
   editor = new EditorInput();
   sampleEditor = new SampleEditor();
   focusedInputHandler.push(editor);
+
+  playerEngine = new ModulePlayer(sampleEditor);
+                    
+  audioSyncDelay = 'webkitAudioContext' in window ? 0 : 400;
 
   $(window).keydown(function(ev) {
     focusedInputHandler[focusedInputHandler.length - 1].handleKeypress(ev);
@@ -1021,8 +1014,6 @@ $(document).ready(function() {
 
   editor.generateEditorUI();
   editor.updateUI();
-  init();
-  //dynamicAudio = new DynamicAudio({'swf': 'dynamicaudio.swf'});  
   loadRemote('sundance.mod');
 });
 

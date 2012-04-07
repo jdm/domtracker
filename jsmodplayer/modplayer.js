@@ -142,6 +142,7 @@ ModPlayer.prototype = {
   createChannel: function() {
     return {
       playing: false,
+      muted: false,
       sample: this.mod.samples[0],
       finetune: 0,
       volume: 0,
@@ -340,7 +341,7 @@ ModPlayer.prototype = {
 	channel.tonePortaVolStep = 0;
       }
     }
-    editor.triggerUpdate(this); //XXXjdm
+    //editor.triggerUpdate(this); //XXXjdm
   },
   
   loadPattern: function(patternNumber) {
@@ -354,7 +355,7 @@ ModPlayer.prototype = {
     positionNumber = (positionNumber > this.mod.positionCount - 1) ? 0 : positionNumber;	
     this.currentPosition = positionNumber;
     this.loadPattern(this.mod.positions[this.currentPosition]);
-    editor.triggerUpdate(this); //XXXjdm    
+    //editor.triggerUpdate(this); //XXXjdm    
   },
   
   getNextPosition: function() {
@@ -461,7 +462,7 @@ ModPlayer.prototype = {
   getOutputLevelsForChannel: function(channel, chan) {
     var leftOutputLevel = 0;
     var rightOutputLevel = 0;
-    if (!channel.playing)
+    if (!channel.playing || channel.muted)
       return [leftOutputLevel, rightOutputLevel];
 
     channel.ticksSinceStartOfSample += this.ticksPerOutputSample;

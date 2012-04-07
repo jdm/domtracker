@@ -45,6 +45,15 @@ select {
     border-bottom: 1px dashed;
 }
 
+.channel .header:hover {
+    cursor: pointer;
+    background-color: #DDDDDD;
+}
+
+.muted {
+    background-color: grey !important;
+}
+
 .note {
     color: black;
 }
