@@ -11,29 +11,31 @@ sundance.mod by Purple Motion / Future Crew.
 
 ## TODO ##
 
-main editor:
--  drag'n'drop patterns in position table
--  repeated scrolling when holding down mouse button on position table buttons
--  more keybindings, customizable keybindings
--  channel solo/mute
--  saving modules to offline storage
--  saving modules to local machine
--  export as wav
--  loading module files (remote)
--  optimize pattern redraw and update
--  optimize selection redraw
--  copy/cut/paste
--  undo/redo
--  informative display for effect/sample name under cursor
--  more module file types? (oh noooooooooooooooooooooo)
--  jsmodplayer improvements (1993.MOD shows significant problems)
--  webkit support
+**main editor**
 
-sample editor:
--   single row stepping
--   sample select/cut/copy/paste
--   importing samples (local/remote)
--   saving samples
--   edit sample metadata
--   apply effects (amplify, reverse, etc.)
--   modify/set loop points
+- drag'n'drop patterns in position table
+- repeated scrolling when holding down mouse button on position table buttons
+- more keybindings, customizable keybindings
+- channel solo/mute
+- saving modules to offline storage
+- saving modules to local machine
+- export as wav
+- loading module files (remote)
+- optimize pattern redraw and update
+- optimize selection redraw
+- copy/cut/paste
+- undo/redo
+- informative display for effect/sample name under cursor
+- more module file types? (oh noooooooooooooooooooooo)
+- jsmodplayer improvements (1993.MOD shows significant problems)
+- webkit support
+
+**sample editor**
+
+- single row stepping
+- sample select/cut/copy/paste
+- importing samples (local/remote)
+- saving samples
+- edit sample metadata
+- apply effects (amplify, reverse, etc.)
+- modify/set loop points
