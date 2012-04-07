@@ -7,52 +7,54 @@ function keyCodeToString(keyCode) {
   if (keyMapping)
     return keyMapping[keyCode];
 
+  // Format: 'readable name' : (keycode | [mac keycode, windows keycode])
   var mapping = {
-    DOM_VK_SEMICOLON: ';',
-    DOM_VK_EQUALS: '=',
-    DOM_VK_COMMA: ',',
-    DOM_VK_PERIOD: '.',
-    DOM_VK_SLASH: '/',
-    DOM_VK_BACK_QUOTE: '`',
-    DOM_VK_OPEN_BRACKET: '[',
-    DOM_VK_BACK_SLASH: '\\',
-    DOM_VK_CLOSE_BRACKEY: ']',
-    DOM_VK_QUOTE: '\'',
-    DOM_VK_BACK_SPACE: 'backspace',
-    DOM_VK_TAB: 'tab',
-    DOM_VK_RETURN: 'return',
-    DOM_VK_ENTER: 'enter',
-    DOM_VK_PAGE_UP: 'pageup',
-    DOM_VK_PAGE_DOWN: 'pagedown',
-    DOM_VK_END: 'end',
-    DOM_VK_HOME: 'home',
-    DOM_VK_LEFT: 'left',
-    DOM_VK_RIGHT: 'right',
-    DOM_VK_UP: 'up',
-    DOM_VK_DOWN: 'down',
-    DOM_VK_INSERT: 'insert',
-    DOM_VK_DELETE: 'delete',
-    DOM_VK_SPACE: 'space',
-    DOM_VK_ESCAPE: 'escape',
-    DOM_VK_F1: 'f1',
-    DOM_VK_F2: 'f2',
-    DOM_VK_F3: 'f3',
-    DOM_VK_F4: 'f4',
-    DOM_VK_F5: 'f5',
-    DOM_VK_F6: 'f6',
-    DOM_VK_F7: 'f7',
-    DOM_VK_F8: 'f8',
-    DOM_VK_F9: 'f9',
-    DOM_VK_F10: 'f10',
-    DOM_VK_F11: 'f11',
-    DOM_VK_F12: 'f12',
-    DOM_VK_SUBTRACT: '-',
-    DOM_VK_SHIFT: 'shift'
+    ';' : 59,
+    '=' : [61, 107],
+    ',' : 188,
+    '.' : 190,
+    '/' : 191,
+    '`' : 192,
+    '[' : 219,
+    '\\' : [220, 222],
+    ']' : 221,
+    '\'' : [222, 192],
+    'backspace' : 8,
+    'tab' : 9,
+    'return' : 13,
+    'enter' : 14,
+    'pageup' : 33,
+    'pagedown' : 34,
+    'end' : 35,
+    'home' : 36,
+    'left' : 37,
+    'right' : 39,
+    'up' : 38,
+    'down' : 40,
+    'insert' : 45,
+    'delete' : 46,
+    'space' : 32,
+    'escape' : 27,
+    'f1' : 112,
+    'f2' : 113,
+    'f3' : 114,
+    'f4' : 115,
+    'f5' : 116,
+    'f6' : 117,
+    'f7' : 118,
+    'f8' : 119,
+    'f9' : 120,
+    'f10' : 121,
+    'f11' : 122,
+    'f12' : 123,
+    '-' : 109,
+    'shift' : 16
   };
-  var keyMapping = {};
+  keyMapping = {};
   for (var prop in mapping) {
-    var keyEvent = 'KeyEvent' in window ? KeyEvent : KeyboardEvent;
-    keyMapping[keyEvent[prop]] = mapping[prop];
+    //XXX we currently default to mac keycodes when given a choice
+    var val = typeof mapping[prop] == "Array" ? mapping[prop][0] : mapping[prop];
+    keyMapping[val] = prop;
   }
   return keyMapping[keyCode];
 }
@@ -210,7 +212,7 @@ EditorInput.prototype = {
 
     var keyCode = ev.keyCode || ev.which;
     var key = keyCodeToString(keyCode);
-    //console.log(keyCode);
+    //console.log(key);
     if (!ev.metaKey && (isAlphaNum(keyCode) ||
          ['[', ']', ';', '\'', ',', '.', '/', '\\'].indexOf(key) != -1)) {
       this.overwriteValue(keyCode);
