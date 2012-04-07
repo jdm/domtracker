@@ -349,6 +349,7 @@ EditorInput.prototype = {
         stop();
         modPlayer.loadPosition(this.position);
         playerEngine.playing = PLAYING_PATTERN;
+        this.playingPosition = this.position;
         break;
       
       case 'f8':
@@ -630,6 +631,11 @@ EditorInput.prototype = {
     if (!this.mod)
       return;
 
+    if (playerEngine.playing == PLAYING_PATTERN && this.playingPosition != currentPlayer.currentPosition) {
+      currentPlayer.loadPosition(this.playingPosition); //XXX
+    }
+    this.playingPosition = currentPlayer.currentPosition;
+
     var self = this;
     var player = {
       currentPosition: currentPlayer.currentPosition,
@@ -637,11 +643,6 @@ EditorInput.prototype = {
     };
 
     setTimeout(function() {
-      if (playerEngine.playing == PLAYING_PATTERN && self.position != player.currentPosition) {
-        player.loadPosition(self.position); //XXX
-        return;
-      }
-
       var lastPosition = self.position;
       self.position = player.currentPosition;
       if (lastPosition != self.position)
