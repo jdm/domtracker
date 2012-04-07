@@ -607,8 +607,10 @@ EditorInput.prototype = {
 
       idx++;
     });
-    if (highlightedCol)
-      highlightedCol.scrollIntoView(false);
+    
+    if (highlightedCol) {
+      $('html,body').animate({scrollTop: $(highlightedCol).offset().top - window.innerHeight/2}, 0);
+    }
   },
   
   loadMOD: function(mod) {
