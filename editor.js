@@ -365,6 +365,7 @@ EditorInput.prototype = {
           modPlayer.loadPosition(this.position);
         modPlayer.loadRow(row);
         playerEngine.playing = PLAYING_ROW;
+        this.playingRow = row;
         break;
       
       case 'e':
@@ -628,14 +629,20 @@ EditorInput.prototype = {
   },
   
   triggerUpdate: function(currentPlayer) {
-    if (!this.mod)
+    // We can ignore updates when we're previewing sample sounds
+    if (!this.mod || playerEngine.playing == PLAYING_SAMPLE)
       return;
 
-    if (playerEngine.playing == PLAYING_PATTERN && this.playingPosition != currentPlayer.currentPosition) {
-      currentPlayer.loadPosition(this.playingPosition); //XXX
-    }
-    this.playingPosition = currentPlayer.currentPosition;
+    // Since the actual UI updates can be delayed to sync with the sound buffer,
+    // we need to perform the actual logical checks here if we plan to update
+    // the player at all.
 
+    // If we run off the end of a pattern when in single-pattern repeat mode, reset to
+    // the repeating pattern.
+    if (playerEngine.playing == PLAYING_PATTERN && this.playingPosition != currentPlayer.currentPosition)
+      currentPlayer.loadPosition(this.playingPosition);
+    this.playingPosition = currentPlayer.currentPosition;
+    
     var self = this;
     var player = {
       currentPosition: currentPlayer.currentPosition,
@@ -649,9 +656,12 @@ EditorInput.prototype = {
         self.generateStaticEditorUI(); //XXX won't keep current scrolled in view
       var oldPattern = self.pattern;
       self.pattern = self.mod.positions[self.position];
-      if (playerEngine.playing == PLAYING_ROW && player.currentRow != self.row)
-        playerEngine.playing = PLAYING_SAMPLE;
-      self.row = player.currentRow;
+                 
+      // Heuristic: if the UI thinks we're farther ahead of where we think we are
+      // at this point, don't overwrite the UI with the older value.
+      if (self.row < player.current || self.pattern != oldPattern)
+        self.row = player.currentRow;
+
       if (oldPattern != self.pattern)
         self.generateEditorUI();
       self.updateUI();
@@ -824,7 +834,11 @@ SampleEditor.prototype = {
     var self = this;
     var callback = function(timestamp) {
       if (self.fakeChannel.samplePosition != self.lastPlayPosition) {
-        self.drawWaveform(document.getElementById('sample-display'), self.fakeChannel.playing);
+        var samplePosition = self.fakeChannel.samplePosition;
+        var playing = self.fakeChannel.playing;
+        setTimeout(function() {
+          self.drawWaveform(document.getElementById('sample-display'), playing, samplePosition);
+        }, audioSyncDelay);
         this.lastPlayPosition = self.fakeChannel.samplePosition;
       }
       if (self.fakeChannel.playing)
@@ -837,7 +851,7 @@ SampleEditor.prototype = {
     return this.fakeChannel;
   },
   
-  drawWaveform: function(canvas, playing) {
+  drawWaveform: function(canvas, playing, samplePosition) {
     var sample = editor.mod.sampleData[this.currentInstrument];
     var yOffset = Math.floor(canvas.height / 2);
     var lasty = -(sample[0] - 128);
@@ -886,10 +900,10 @@ SampleEditor.prototype = {
       context.stroke(x, canvas.height);
     }
     
-    if (playerEngine.playing) {
+    if (playing) {
       context.beginPath();
       context.strokeStyle = "#FFFFFF";
-      var x = Math.floor(this.fakeChannel.samplePosition / length * canvas.width);
+      var x = Math.floor(samplePosition / length * canvas.width);
       context.moveTo(x, 0);
       context.lineTo(x, canvas.height);
       context.stroke();

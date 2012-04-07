@@ -12,6 +12,22 @@ ModulePlayer.prototype = {
   channelCount: 0,
   sampleRate: 0,
   lastRebuffer: 0,
+  
+  advanceFrame: function() {
+    if (this.playing == PLAYING_SAMPLE)
+      return false;
+
+    // When we should advance to the next row when previewing a row,
+    // we don't do so in the playback engine but display a row advance
+    // in the UI.
+    if (this.playing == PLAYING_ROW) {
+      this.playing = PLAYING_SAMPLE;
+      editor.adjustRow(1);
+      return false;
+    }
+
+    return true;
+  },
 
   createDevice: function(player) {
     this.player = player;
@@ -19,17 +35,19 @@ ModulePlayer.prototype = {
 
     this.refill = function(sampleBuffer) {
       //console.log("delta = " + (Date.now() - self.lastRebuffer) + ", asked for " + sampleBuffer.length);
-      self.lastRebuffer = Date.now();
       if (self.playing == STOPPED)
         return;
 
+      self.lastRebuffer = Date.now();
+
+      editor.triggerUpdate(self.player);
+
       var buffer = self.playing == PLAYING_PREVIEW ?
         self.player.getSamplesForChannel(sampleBuffer.length, self.editor.getPreviewSource()) :
-        self.player.getSamples(sampleBuffer.length, self.playing != PLAYING_SAMPLE);
+        self.player.getSamples(sampleBuffer.length, self);
       for (var i = 0; i < sampleBuffer.length; i++) {
         sampleBuffer[i] = buffer[i];
       }
-      editor.triggerUpdate(self.player);
     };
     
     this.reinitDevice();

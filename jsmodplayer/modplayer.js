@@ -493,13 +493,13 @@ ModPlayer.prototype = {
     return [leftOutputLevel, rightOutputLevel];
   },
   
-  getSamples: function(sampleCount, advanceFrame) {
+  getSamples: function(sampleCount, callback) {
     var samples = [];
     var i = 0;
     while (i < sampleCount) {
       this.ticksSinceStartOfFrame += this.ticksPerOutputSample;
       while (this.ticksSinceStartOfFrame >= this.ticksPerFrame) {
-	if (advanceFrame)
+	if (callback.advanceFrame())
           this.doFrame();
 	this.ticksSinceStartOfFrame -= this.ticksPerFrame;
       }
