@@ -934,7 +934,6 @@ var PLAYING_PREVIEW = 5;
 
 function play() {
   playerEngine.playing = PLAYING;
-  playerEngine.reinitDevice();
 }
 
 function playFromStart() {
