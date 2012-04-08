@@ -29,8 +29,9 @@ select {
     margin-right: .5em;
 }
 
-.editor div.row span :last-child {
+.editor div.row :last-child {
     margin-left: -.5em;
+    margin-right: 0px;
 }
 
 .channel {
