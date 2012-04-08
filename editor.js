@@ -889,6 +889,16 @@ SampleEditor.prototype = {
     ev.preventDefault();
   },
   
+  handleDoubleClick: function(ev) {
+    if (ev.button != 0)
+      return;
+    
+    this.selStart = 0;
+    this.selEnd = ev.target.width;
+    this.drawWaveform(ev.target);
+    ev.preventDefault();
+  },
+  
   stopPreview: function() {
     if (this.fakeChannel)
       this.fakeChannel.playing = false;
@@ -1003,9 +1013,11 @@ function openSampleEditor(sampleIndex) {
   $(canvas).off('mousedown');
   $(canvas).off('mouseup');
   $(canvas).off('mousemove');
+  $(canvas).off('dblclick');
   $(canvas).mousedown(sampleEditor.handleMouseDown.bind(sampleEditor));
   $(canvas).mouseup(sampleEditor.handleMouseUp.bind(sampleEditor));
   $(canvas).mousemove(sampleEditor.handleMouseMove.bind(sampleEditor));
+  $(canvas).dblclick(sampleEditor.handleDoubleClick.bind(sampleEditor));
 
   sampler.style.display = "block";  
   
