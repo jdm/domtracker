@@ -1092,11 +1092,12 @@ function loadLocal(file) {
 
 function loadRemote(path) {
   var fetch = new XMLHttpRequest();
-  fetch.open('GET', 'xhrfetch.php?url=' + path);
+  if (path.indexOf('http://') == 0)
+    path = 'xhrfetch.php?url=' + path;
+  fetch.open('GET', path);
   fetch.overrideMimeType("text/plain; charset=x-user-defined");
   fetch.onloadend = function() {
-      console.log(this.status);
-      if (this.status != 200)
+      if (this.status != 200 && document.location.protocol != "file:")
         return;
       /* munge response into a binary string */
       var t = this.responseText || "" ;
