@@ -828,6 +828,28 @@ SampleEditor.prototype = {
         this.drawWaveform(document.getElementById('sample-display'));
         document.getElementById('instrument').selectedIndex = this.currentInstrument;
         break;
+      
+      case 'delete':
+        if (this.selStart == this.selEnd)
+          break;
+
+        var canvas = document.getElementById('sample-display');
+        var sample = [];
+        for (var i = 0; i < editor.mod.sampleData[this.currentInstrument].length; i++)
+          sample.push(editor.mod.sampleData[this.currentInstrument][i]);
+
+        var startIndex = Math.floor(this.selStart * sample.length / canvas.width);
+        var endIndex = Math.floor(this.selEnd * sample.length / canvas.width);
+        sample.splice(Math.min(startIndex, endIndex), Math.abs(endIndex - startIndex));
+
+        editor.mod.sampleData[this.currentInstrument] = new Uint8Array(sample.length, "uint8");
+        for (var i = 0; i < sample.length; i++)
+          editor.mod.sampleData[this.currentInstrument][i] = sample[i];
+        editor.mod.samples[this.currentInstrument].length = sample.length;
+
+        this.selStart = this.selEnd = 0;
+        this.drawWaveform(canvas);
+        break;
 
       default:
         return;
