@@ -12,16 +12,15 @@
   <script type="text/javascript" src="editor.js"></script>
 </head>
 <body>
+  <div id="menu">
+    <input type="button" value="New">
+    <input type="button" value="Open" onclick="openLoadDialog('Open module', loadModule)">
+    <input type="button" value="Save">
+    <input type="button" value="Export">
+  </div>
+
   <div id="editor" class="editor">
-    <label for="localfile">Load MOD:</label> <input type="file" id="localfile" onchange="loadLocal(this.files[0])" />
-    <br/>
-    <hr/>
     <div id="pattern-list">
-      <div>&lt;</div>
-      <div>1</div>
-      <div class="pattern-selected">2</div>
-      <div>3</div>
-      <div>&gt;</div>
     </div>
     <hr/>
     <label for="instrument">Current: </label>
@@ -39,6 +38,16 @@
     <canvas id="sample-display"></canvas> <br/>
     <input type="button" value="Close" onclick="closeSampleEditor()"/>
   </div>
+
+  <fieldset id="load-dialog">
+    <legend id="load-dialog-title">Open file</legend>
+    <label id="load-dialog-remote-label" for="load-dialog-remote">Remote URL:</label>
+    <!--<input type="url" id="load-dialog-remote" value="http://">-->
+    <label id="load-dialog-local-label" for="load-dialog-local">Local file:</label>
+    <!--<input type="file" id="load-dialog-localfile">-->
+    <button type="submit" id="load-dialog-ok">Ok</button>
+    <button type="reset" id="load-dialog-cancel" onclick="closeLoadDialog()">Cancel</button>
+  </fieldset>
 
 </body>
 </html>

@@ -122,6 +122,57 @@ select {
     display: none;
 }
 
+#load-dialog {
+    /*font-size:1em/1.4l Verdana, Arial, Helvetica, sans-serif;*/
+    width:30em;
+    text-align:left;
+    border-radius: 20px;
+    background: grey;
+    color: white;
+    opacity: 0.9;
+    padding: 1.5em;
+    position: absolute;
+    z-index: 15;
+    /*margin-left: 25%;
+    margin-top: 25%;*/
+    font-family: monospace;
+    display: none;
+}
+
+#load-dialog label {
+    display: block;
+    float: left;
+    clear: left;
+    width: 90px;
+    margin: 12px 0 0;
+    font-weight: 700;
+    font-size: .9em;
+}
+
+#load-dialog legend {
+    color: black;
+    padding:0 10px;
+    margin:0;
+    font-weight: 800;
+}
+
+#load-dialog input {
+    width: 240px;
+    border: 1px solid #ccc;
+    padding: 5px;
+    margin: 10px 0 0 0;
+}
+
+#load-dialog button {
+    display: block;
+    float: left;
+    margin: 2em 0 0em 90px;
+}
+
+#menu {
+    margin-bottom: 1em;
+}
+
 /* Effect colors */
 
 .setvolume {

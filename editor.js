@@ -373,6 +373,12 @@ EditorInput.prototype = {
           return;
         openSampleEditor(document.getElementById('instrument').selectedIndex);
         break;
+      
+      case 'o':
+        if (!ev.metaKey)
+          return;
+        openLoadDialog('Open module', loadModule);
+        break;
 
       default:
         return;
@@ -1086,9 +1092,12 @@ function loadLocal(file) {
 
 function loadRemote(path) {
   var fetch = new XMLHttpRequest();
-  fetch.open('GET', path);
+  fetch.open('GET', 'xhrfetch.php?url=' + path);
   fetch.overrideMimeType("text/plain; charset=x-user-defined");
   fetch.onloadend = function() {
+      console.log(this.status);
+      if (this.status != 200)
+        return;
       /* munge response into a binary string */
       var t = this.responseText || "" ;
       var ff = [];
@@ -1108,6 +1117,59 @@ function loadRemote(path) {
   };
   //document.getElementById('status').innerText = 'loading...';
   fetch.send();
+}
+
+function openLoadDialog(title, callback) {
+  var dialog = document.getElementById('load-dialog');
+  var elem = document.createElement('input');
+  elem.type = 'url';
+  elem.id = 'load-dialog-remote';
+  $(elem).insertAfter('#load-dialog-remote-label');
+  elem = document.createElement('input');
+  elem.type = 'file';
+  elem.id = 'load-dialog-localfile';
+  $(elem).insertAfter('#load-dialog-local-label');
+  
+  dialog.style.display = 'block';
+  dialog.style.left = (dialog.parentNode.offsetWidth - dialog.offsetWidth) / 2 + "px";
+  dialog.style.top = (dialog.parentNode.parentNode.offsetHeight - dialog.offsetHeight) / 2 + "px";
+  document.getElementById('load-dialog-title').textContent = title;
+  document.getElementById('load-dialog-ok').onclick = function() {
+    if (callback())
+      closeLoadDialog();
+  };
+  focusedInputHandler.push({
+    handleKeypress: function(ev) {
+      switch (keyCodeToString(ev.which)) {
+        case 'escape':
+          closeLoadDialog();
+          break;
+        default:
+          return;
+      }
+      ev.preventDefault();
+    }
+  });
+}
+
+function closeLoadDialog() {
+  var dialog = document.getElementById('load-dialog');
+  dialog.style.display = 'none';
+  dialog.removeChild(document.getElementById('load-dialog-remote'));
+  dialog.removeChild(document.getElementById('load-dialog-localfile'));
+  focusedInputHandler.pop();
+}
+
+function loadModule() {
+  var local = document.getElementById('load-dialog-localfile');
+  var remote = document.getElementById('load-dialog-remote');
+  if (!(remote.value.length > 0 ^ local.files[0] !== undefined))
+    return false;
+  if (remote.value.length > 0)
+    loadRemote(remote.value);
+  else
+    loadLocal(local.files[0]);
+  return true;
 }
 
 var audioSyncDelay = 0;
