@@ -835,6 +835,38 @@ SampleEditor.prototype = {
     ev.preventDefault();
   },
   
+  selStart: 0,
+  selEnd: 0,
+  selecting: false,
+  
+  handleMouseDown: function(ev) {
+    if (ev.button != 0)
+      return;
+    
+    this.selecting = true;
+    this.selStart = this.selEnd = ev.clientX - ev.target.parentNode.offsetLeft;
+    ev.preventDefault();
+  },
+  
+  handleMouseMove: function(ev) {
+    if (!this.selecting)
+      return;
+    
+    this.selEnd = ev.clientX - ev.target.parentNode.offsetLeft;
+    this.drawWaveform(ev.target);
+    ev.preventDefault();
+  },
+  
+  handleMouseUp: function(ev) {
+    if (ev.button != 0)
+      return;
+    
+    this.selecting = false;
+    this.selEnd = ev.clientX - ev.target.parentNode.offsetLeft;
+    this.drawWaveform(ev.target);
+    ev.preventDefault();
+  },
+  
   stopPreview: function() {
     if (this.fakeChannel)
       this.fakeChannel.playing = false;
@@ -885,10 +917,11 @@ SampleEditor.prototype = {
     }
 
     var context = canvas.getContext("2d");
-    context.beginPath();
-    context.rect(0, 0, canvas.width, canvas.height);
     context.fillStyle = "#000000";
-    context.fill();
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    
+    context.fillStyle = "#FFFFFF";
+    context.fillRect(this.selStart, 0, this.selEnd - this.selStart, canvas.height);
 
     context.beginPath();
     context.strokeStyle = "#FF0000";
@@ -943,11 +976,20 @@ function openSampleEditor(sampleIndex) {
   
   focusedInputHandler.push(sampleEditor);
 
-  var canvas = document.getElementById('sample-display');;
-  canvas.width = "1500";
+  var canvas = document.getElementById('sample-display');
+  
+  $(canvas).off('mousedown');
+  $(canvas).off('mouseup');
+  $(canvas).off('mousemove');
+  $(canvas).mousedown(sampleEditor.handleMouseDown.bind(sampleEditor));
+  $(canvas).mouseup(sampleEditor.handleMouseUp.bind(sampleEditor));
+  $(canvas).mousemove(sampleEditor.handleMouseMove.bind(sampleEditor));
+
+  sampler.style.display = "block";  
+  
+  canvas.width = canvas.parentNode.offsetWidth;
   canvas.height = "256";
   sampleEditor.drawWaveform(canvas);
-  sampler.style.display = "block";  
 }
 
 function closeSampleEditor() {
