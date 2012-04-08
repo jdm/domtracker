@@ -163,7 +163,7 @@ EditorInput.prototype = {
   adjustSample: function(mod) {
     var instr = document.getElementById('instrument');
     var sample = instr.selectedIndex + mod;
-    if (sample == 0) {
+    if (sample == -1) {
       sample++;
     } else if (sample == instr.getElementsByTagName('option').length) {
       sample--;
@@ -534,6 +534,7 @@ EditorInput.prototype = {
 
       var header = document.createElement('div');
       $(header).addClass('header');
+      console.log(i);
       if (modPlayer.channels[i].muted)
         $(header).addClass('muted');
       header.textContent = "Channel " + (i + 1);
@@ -1078,8 +1079,8 @@ function loadLocal(file) {
 		       /* actually load mod once we're passed the file data */
 		       theFile = e.target.result; /* get the data string out of the blob object */
 		       var modFile = new ModFile(theFile);
-                       editor.loadMOD(modFile);
 		       modPlayer = new ModPlayer(modFile, 44100);
+                       editor.loadMOD(modFile);
                        playerEngine.createDevice(modPlayer);
 		       //play();
 		       //document.getElementById('status').innerText = '';
