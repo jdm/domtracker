@@ -170,6 +170,10 @@ select {
     margin: 10px 0 0 0;
 }
 
+#load-dialog span {
+    display: table-row;
+}
+
 #load-dialog span:hover {
     cursor: pointer;
     color: black;

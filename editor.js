@@ -379,6 +379,20 @@ EditorInput.prototype = {
           return;
         openLoadDialog('Open module', loadModule);
         break;
+      
+      case 's':
+        if (!ev.metaKey)
+          return;
+        if (editor.mod.id === undefined) {
+          openSaveDialog();
+        } else {
+          fileStore.get(editor.mod.id, function(data) {
+            fileStore.put(data.name, editor.mod.serialize(),
+                          function(id) { editor.mod.id = id; },
+                          editor.mod.id);
+          });
+        }
+        break;
 
       default:
         return;
@@ -1080,6 +1094,7 @@ function loadModuleFromBuffer(buf) {
 function loadFromStorage(id) {
   fileStore.get(id, function(data) {
     loadModuleFromBuffer(data.contents);
+    editor.mod.id = id;
   });
 }
 
@@ -1178,6 +1193,11 @@ function openSaveDialog() {
   modalDialog.open('Save file');
   
   modalDialog.appendLabelledInput('load-dialog-name', 'text', 'Filename:');
+  if (editor.mod.id !== undefined) {
+    fileStore.get(editor.mod.id, function(data) {
+      document.getElementById('load-dialog-name').value = data.name;
+    });
+  }
   
   function doSave() {
     var value = document.getElementById('load-dialog-name').value;
