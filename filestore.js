@@ -9,7 +9,8 @@ FileStore.prototype = {
       return;
     }
 
-    this.files = new IDBStore({
+    var self = this;
+    var files = new IDBStore({
       dbName: 'filestoredb',
       dbDescription: 'DB used for storing files',
       dbVersion: '1.0',
@@ -17,6 +18,7 @@ FileStore.prototype = {
       keyPath: 'id',
       autoIncrement: true,
       onStoreReady: function(){
+        self.files = files;
         callback();
       }
     });
