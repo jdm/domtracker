@@ -164,10 +164,25 @@ select {
     margin: 10px 0 0 0;
 }
 
+#load-dialog div {
+    margin-top: 2em;
+    width: 300px;
+    margin: 10px 0 0 0;
+}
+
+#load-dialog span:hover {
+    cursor: pointer;
+    color: black;
+}
+
 #load-dialog button {
     display: block;
     float: left;
     margin: 2em 0 0em 90px;
+}
+
+.dialog-selected {
+    color: black;
 }
 
 #menu {

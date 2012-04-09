@@ -23,7 +23,7 @@ function ModFile(mod) {
 	this.patternCount = 0;
 	this.patterns = [];
 	
-	this.title = trimNulls(mod.substr(0, 20))
+	this.title = trimNulls(mod.substr(0, 20));
 
 	this.sampleCount = 31;
 
@@ -36,7 +36,7 @@ function ModFile(mod) {
 			volume: sampleInfo.charCodeAt(25),
 			repeatOffset: getWord(sampleInfo, 26) * 2,
 			repeatLength: getWord(sampleInfo, 28) * 2,
-                        name: sampleName //XXXjdm
+                        name: sampleName
 		}
 	}
 	
@@ -49,9 +49,9 @@ function ModFile(mod) {
 		}
 	}
 	
-	var identifier = mod.substr(1080, 4);
+	this.identifier = mod.substr(1080, 4);
 	
-	this.channelCount = channelCountByIdentifier[identifier];
+	this.channelCount = channelCountByIdentifier[this.identifier];
 	if (!this.channelCount) {
 		this.channelCount = 4;
 	}
@@ -95,3 +95,105 @@ function ModFile(mod) {
 	}
 	
 }
+
+ModFile.prototype = {
+  clear: function() {
+    delete this.id;
+    
+    this.title = "";
+    this.sampleCount = 31;
+    this.samples = [];
+    this.sampleData = [];
+    for (var i = 0; i < this.sampleCount; i++) {
+      this.samples.push({
+        length: 0,
+        finetune: 0,
+        volume: 0,
+        repeatOffset: 0,
+        repeatLength: 0,
+        name: ""
+      });
+      this.sampleData.push(new Uint8Array(0, "uint8"));
+    }
+    
+    this.positions = [0];
+    this.positionCount = this.patternCount = 1;
+    this.positionLoopPoint = 0;
+    this.identifier = 'M.K.';
+    
+    this.channelCount = channelCountByIdentifier[this.identifier];
+    
+    this.patterns = [];
+    var pattern = [];
+    for (var i = 0; i < 64; i++) {
+      pattern[i] = [];
+      for (var j = 0; j < this.channelCount; j++)
+        pattern[i][j] = {
+          sample: 0,
+          period: 0,
+          effect: 0,
+          effectParameter: 0
+        };
+    }
+    this.patterns.push(pattern);
+  },
+
+  serialize: function() {
+    function padWithNull(s, n) {
+      function repeat(s, n) {
+        return new Array(n + 1).join(s);
+      }
+      return s + repeat(String.fromCharCode(0), n - s.length);
+    }
+    
+    function toWord(n) {
+      return String.fromCharCode((n >> 8) & 0xFF) + String.fromCharCode(n & 0xFF);
+    }
+
+    var buf = padWithNull(this.title, 20);
+    for (var i = 0; i < this.sampleCount; i++) {
+      var sample = this.samples[i];
+      buf += padWithNull(sample.name, 22);
+      buf += toWord(sample.length / 2);
+      buf += String.fromCharCode(sample.finetune);
+      buf += String.fromCharCode(sample.volume);
+      buf += toWord(sample.repeatOffset / 2);
+      buf += toWord(sample.repeatLength / 2);
+    }
+
+    buf += String.fromCharCode(this.positionCount);
+    buf += String.fromCharCode(this.positionLoopPoint);
+    for (var i = 0; i < 128; i++) {
+      buf += String.fromCharCode(this.positions[i]);
+    }
+    
+    buf += this.identifier;
+
+    if (buf.length != 1084)
+      console.error("Expected write offset of 1084, got " + buf.length + " instead.");
+    
+    for (var i = 0; i < this.patternCount; i++)
+      for (var j = 0; j < 64; j++)
+        for (var k = 0; k < this.channelCount; k++) {
+          var data = this.patterns[i][j][k];
+          var b0 = (data.sample & 0xF0) | (data.period & 0xF00) >> 8;
+          var b1 = data.period & 0xFF;
+          var b2 = ((data.sample & 0x0F) << 4) | data.effect;
+          var b3 = data.effectParameter;
+          buf += String.fromCharCode(b0);
+          buf += String.fromCharCode(b1);
+          buf += String.fromCharCode(b2);
+          buf += String.fromCharCode(b3);
+        }
+
+    for (var i = 0; i < this.sampleCount; i++) {
+      if (buf.length != this.samples[i].startOffset)
+        console.error("Expected sample offset of " + this.samples[i].startOffset +
+                      ", got " + buf.length + " instead.");
+      for (var j = 0; j < this.sampleData[i].length; j++)
+        buf += String.fromCharCode(this.sampleData[i][j]);
+    }
+    
+    return buf;
+  }
+};

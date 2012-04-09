@@ -534,7 +534,6 @@ EditorInput.prototype = {
 
       var header = document.createElement('div');
       $(header).addClass('header');
-      console.log(i);
       if (modPlayer.channels[i].muted)
         $(header).addClass('muted');
       header.textContent = "Channel " + (i + 1);
@@ -1043,6 +1042,7 @@ var editor;
 var sampleEditor;
 var playerEngine;
 var focusedInputHandler = [];
+var fileStore;
 
 var STOPPED = 0;
 var PLAYING = 1;
@@ -1070,6 +1070,19 @@ function stop() {
     sampleEditor.fakeChannel.playing = false;
 }
 
+function loadModuleFromBuffer(buf) {
+  var modFile = new ModFile(buf);
+  modPlayer = new ModPlayer(modFile, 44100);
+  editor.loadMOD(modFile);
+  playerEngine.createDevice(modPlayer);
+}
+
+function loadFromStorage(id) {
+  fileStore.get(id, function(data) {
+    loadModuleFromBuffer(data.contents);
+  });
+}
+
 /* load from harddrive using HTML5 File API */
 function loadLocal(file) {
   var reader = new FileReader();
@@ -1078,11 +1091,7 @@ function loadLocal(file) {
 		     return function(e) {
 		       /* actually load mod once we're passed the file data */
 		       theFile = e.target.result; /* get the data string out of the blob object */
-		       var modFile = new ModFile(theFile);
-		       modPlayer = new ModPlayer(modFile, 44100);
-                       editor.loadMOD(modFile);
-                       playerEngine.createDevice(modPlayer);
-		       //play();
+                       loadModuleFromBuffer(theFile);
 		       //document.getElementById('status').innerText = '';
 		     };
 		   })(file);
@@ -1121,56 +1130,81 @@ function loadRemote(path) {
   fetch.send();
 }
 
+var modalDialog;
+
 function openLoadDialog(title, callback) {
-  var dialog = document.getElementById('load-dialog');
-  var elem = document.createElement('input');
-  elem.type = 'url';
-  elem.id = 'load-dialog-remote';
-  $(elem).insertAfter('#load-dialog-remote-label');
-  elem = document.createElement('input');
-  elem.type = 'file';
-  elem.id = 'load-dialog-localfile';
-  $(elem).insertAfter('#load-dialog-local-label');
-  
-  dialog.style.display = 'block';
-  dialog.style.left = (dialog.parentNode.offsetWidth - dialog.offsetWidth) / 2 + "px";
-  dialog.style.top = (dialog.parentNode.parentNode.offsetHeight - dialog.offsetHeight) / 2 + "px";
-  document.getElementById('load-dialog-title').textContent = title;
-  document.getElementById('load-dialog-ok').onclick = function() {
-    if (callback())
-      closeLoadDialog();
-  };
-  focusedInputHandler.push({
-    handleKeypress: function(ev) {
-      switch (keyCodeToString(ev.which)) {
-        case 'escape':
-          closeLoadDialog();
-          break;
-        default:
-          return;
-      }
-      ev.preventDefault();
+  modalDialog.open(title);
+
+  modalDialog.appendLabelledInput('load-dialog-remote', 'url', 'Remote URL:');
+  modalDialog.appendLabelledInput('load-dialog-localfile', 'file', 'Local file:');
+
+  fileStore.getAll(function(data) {
+    if (data.length > 0) {
+      var label = document.createElement('label');
+      label.textContent = "Saved files:";
+      modalDialog.dialog.appendChild(label);
+      var list = document.createElement('div');
+      modalDialog.dialog.appendChild(list);
     }
+    data.forEach(function(item) {
+      var elem = document.createElement('span');
+      elem.textContent = item.name;
+      $(elem).click(function(ev) {
+        $('.dialog-selected').removeClass('dialog-selected');
+        if (modalDialog.selected != item.id) {
+          modalDialog.selected = item.id;
+          $(elem).addClass('dialog-selected');
+        } else {
+          modalDialog.selected = -1;
+        }
+      });
+      list.appendChild(elem);
+    });
+    modalDialog.appendDefaultButtons(callback);
+    modalDialog.center();
   });
 }
 
-function closeLoadDialog() {
-  var dialog = document.getElementById('load-dialog');
-  dialog.style.display = 'none';
-  dialog.removeChild(document.getElementById('load-dialog-remote'));
-  dialog.removeChild(document.getElementById('load-dialog-localfile'));
-  focusedInputHandler.pop();
+function clearMod() {
+  editor.mod.clear();
+  editor.position = 0;
+  editor.pattern = 0;
+  editor.generateStaticEditorUI();
+  editor.generateEditorUI();
+  editor.updateUI();
+}
+
+function openSaveDialog() {
+  modalDialog.open('Save file');
+  
+  modalDialog.appendLabelledInput('load-dialog-name', 'text', 'Filename:');
+  
+  function doSave() {
+    var value = document.getElementById('load-dialog-name').value;
+    if (value.length == 0)
+      return false;
+    
+    fileStore.put(value, editor.mod.serialize(),
+                  function(id) { editor.mod.id = id; },
+                  editor.mod.id);
+    return true;
+  }
+  
+  modalDialog.appendDefaultButtons(doSave);
+  modalDialog.center();
 }
 
 function loadModule() {
   var local = document.getElementById('load-dialog-localfile');
   var remote = document.getElementById('load-dialog-remote');
-  if (!(remote.value.length > 0 ^ local.files[0] !== undefined))
+  if (!(remote.value.length > 0 ^ local.files[0] !== undefined ^ modalDialog.selected >= 0))
     return false;
   if (remote.value.length > 0)
     loadRemote(remote.value);
-  else
+  else if (local.files[0] !== undefined)
     loadLocal(local.files[0]);
+  else
+    loadFromStorage(modalDialog.selected);
   return true;
 }
 
@@ -1181,8 +1215,11 @@ $(document).ready(function() {
   sampleEditor = new SampleEditor();
   focusedInputHandler.push(editor);
 
+  fileStore = new FileStore();
+  modalDialog = new Dialog();
+
   playerEngine = new ModulePlayer(sampleEditor);
-                    
+
   audioSyncDelay = 'webkitAudioContext' in window ? 0 : 400;
 
   $(window).keydown(function(ev) {

@@ -10,12 +10,15 @@
   <script type="text/javascript" src="audiolib-hacked.js"></script>
   <script type="text/javascript" src="player.js"></script>
   <script type="text/javascript" src="editor.js"></script>
+  <script type="text/javascript" src="IDBStore.js"></script>
+  <script type="text/javascript" src="filestore.js"></script>
+  <script type="text/javascript" src="dialog.js"></script>
 </head>
 <body>
   <div id="menu">
-    <input type="button" value="New">
+    <input type="button" value="New" onclick="clearMod()">
     <input type="button" value="Open" onclick="openLoadDialog('Open module', loadModule)">
-    <input type="button" value="Save">
+    <input type="button" value="Save" onclick="openSaveDialog()">
     <input type="button" value="Export">
   </div>
 
@@ -40,13 +43,6 @@
   </div>
 
   <fieldset id="load-dialog">
-    <legend id="load-dialog-title">Open file</legend>
-    <label id="load-dialog-remote-label" for="load-dialog-remote">Remote URL:</label>
-    <!--<input type="url" id="load-dialog-remote" value="http://">-->
-    <label id="load-dialog-local-label" for="load-dialog-local">Local file:</label>
-    <!--<input type="file" id="load-dialog-localfile">-->
-    <button type="submit" id="load-dialog-ok">Ok</button>
-    <button type="reset" id="load-dialog-cancel" onclick="closeLoadDialog()">Cancel</button>
   </fieldset>
 
 </body>
