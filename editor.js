@@ -887,6 +887,7 @@ SampleEditor.prototype = {
     
     this.selecting = true;
     this.selStart = this.selEnd = ev.clientX - ev.target.parentNode.offsetLeft;
+    this.drawWaveform(ev.target);
     ev.preventDefault();
   },
   
@@ -905,6 +906,11 @@ SampleEditor.prototype = {
     
     this.selecting = false;
     this.selEnd = ev.clientX - ev.target.parentNode.offsetLeft;
+    if (this.selEnd < this.selStart) {
+      var tmp = this.selEnd;
+      this.selEnd = this.selStart;
+      this.selStart = tmp;
+    }
     this.drawWaveform(ev.target);
     ev.preventDefault();
   },
@@ -931,6 +937,12 @@ SampleEditor.prototype = {
       period: periodFromKey(keyCodeToString(keyCode)),
       sample: this.currentInstrument + 1
     };
+    if (this.selEnd - this.selStart) {
+      var canvas = document.getElementById('sample-display');
+      var sample = editor.mod.samples[this.currentInstrument];
+      note.offset = Math.floor(this.selStart * sample.length / canvas.width);
+      note.length = Math.floor(this.selEnd * sample.length / canvas.width) - note.offset;
+    }
     modPlayer.prepareChannel(this.fakeChannel, note);
     playerEngine.playing = PLAYING_PREVIEW;
     this.lastPlayPosition = 0;
@@ -938,11 +950,13 @@ SampleEditor.prototype = {
     var callback = function(timestamp) {
       if (self.fakeChannel.samplePosition != self.lastPlayPosition) {
         var samplePosition = self.fakeChannel.samplePosition;
+        if ('offset' in self.fakeChannel.sample)
+          samplePosition += self.fakeChannel.sample.offset;
         var playing = self.fakeChannel.playing;
         setTimeout(function() {
           self.drawWaveform(document.getElementById('sample-display'), playing, samplePosition);
         }, audioSyncDelay);
-        this.lastPlayPosition = self.fakeChannel.samplePosition;
+        this.lastPlayPosition = samplePosition;
       }
       if (self.fakeChannel.playing)
         requestAnimationFrame(callback);
@@ -1006,10 +1020,10 @@ SampleEditor.prototype = {
     
     if (playing) {
       context.beginPath();
-      context.strokeStyle = "#FFFFFF";
       var x = Math.floor(samplePosition / length * canvas.width);
       context.moveTo(x, 0);
       context.lineTo(x, canvas.height);
+      context.strokeStyle = x < this.selStart || x > this.selEnd ? "#FFFFFF" : "#000000";
       context.stroke();
     }
   },

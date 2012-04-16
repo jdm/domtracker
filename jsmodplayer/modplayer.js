@@ -166,7 +166,11 @@ ModPlayer.prototype = {
     channel.samplePosition = 0;
     channel.ticksSinceStartOfSample = 0; /* that's 'sample' as in 'individual volume reading' */
     if (note.sample != 0) {
-      channel.sample = this.mod.samples[note.sample - 1];
+      channel.sample = $.extend({}, this.mod.samples[note.sample - 1]);
+      if ('offset' in note) {
+        channel.sample.offset = note.offset;
+        channel.sample.length = note.length;
+      }
       channel.sampleNum = note.sample - 1;
       channel.volume = channel.sample.volume;
       channel.finetune = channel.sample.finetune;
@@ -478,8 +482,11 @@ ModPlayer.prototype = {
     }
     if (!channel.playing)
       return [leftOutputLevel, rightOutputLevel];
-      
-    var rawVol = this.mod.sampleData[channel.sampleNum][channel.samplePosition];
+    
+    var samplePosition = channel.samplePosition;
+    if ('offset' in channel.sample)
+      samplePosition += channel.sample.offset;
+    var rawVol = this.mod.sampleData[channel.sampleNum][samplePosition];
     var vol = (((rawVol + 128) & 0xff) - 128) * channel.volume; /* range (-128*64)..(127*64) */
     if (chan & 3 == 0 || chan & 3 == 3) { /* hard panning(?): left, right, right, left */
       leftOutputLevel += (vol + channel.pan) * 3;
