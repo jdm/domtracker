@@ -915,10 +915,10 @@ Sampler.joinChannels	= function(buffers){
 		var	devices	= AudioDevice.devices,
 			dev;
 		for (dev in devices){
-			if (devices.hasOwnProperty(dev) && devices[dev].enabled){
+			if (devices[dev].enabled){
 				try{
 					return new devices[dev](readFn, channelCount, preBufferSize, sampleRate);
-				} catch(e1){};
+				} catch(e1){console.log(e1)};
 			}
 		}
 
@@ -1099,7 +1099,7 @@ Sampler.joinChannels	= function(buffers){
 		preBufferSize	= allowedBufferSizes[preBufferSize] ? preBufferSize : 4096;
 		var	self		= this,
 			context		= new (window.AudioContext || webkitAudioContext)(),
-			node		= context.createJavaScriptNode(preBufferSize, 0, channelCount),
+			node		= context.createScriptProcessor(preBufferSize, 0, channelCount),
 			// For now, we have to accept that the AudioContext is at 48000Hz, or whatever it decides, and that we have to use a dummy buffer source.
 			inputBuffer	= context.createBufferSource(/* sampleRate */);
 
@@ -1142,8 +1142,12 @@ Sampler.joinChannels	= function(buffers){
 		this.type		= 'webkit';
 	}
 
-	webkitAudioDevice.enabled	= true;
+	webkitAudioDevice.enabled	= false;
 	webkitAudioDevice.prototype	= new audioDeviceClass('webkit');
+
+        audioDevice = webkitAudioDevice;
+    	audioDevice.enabled	= true;
+	audioDevice.prototype	= new audioDeviceClass('webkit');
 
 	function dummyAudioDevice(readFn, channelCount, preBufferSize, sampleRate){
 		sampleRate	= allowedSampleRates[sampleRate] ? sampleRate : 44100;
@@ -1176,8 +1180,7 @@ Sampler.joinChannels	= function(buffers){
 	AudioDevice.deviceClass		= audioDeviceClass;
 	AudioDevice.propertyEnum	= propertyEnum;
 	AudioDevice.devices		= {
-		moz:		mozAudioDevice,
-		webkit:		webkitAudioDevice,
+		cross:		audioDevice,
 		dummy:		dummyAudioDevice
 	};
 
